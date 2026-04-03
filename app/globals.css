@@ -284,7 +284,13 @@ button:focus-visible, a:focus-visible {
   #hero > div:first-child {
     max-width: 100% !important;
   }
-  .hero-photo-col { display: none !important; }
+  /* Show photo faintly behind text on mobile */
+  .hero-photo-col {
+    display: block !important;
+    opacity: 0.18 !important;
+    width: 100% !important;
+    pointer-events: none;
+  }
 }
 
 /* ─── ABOUT SECTION ─────────────────────────────── */

@@ -88,8 +88,12 @@ export function Timeline() {
       const H = container.offsetHeight;
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
-      const cx   = W * 0.50;
-      const SWAY = W * 0.07;
+      // On mobile (< 720px) the layout collapses to a single left-aligned column.
+      // Use a narrow left-edge cx (20px) with no sway so the path becomes a
+      // straight vertical indicator line on the left — rebuilt live via ResizeObserver.
+      const isMobile = W < 720;
+      const cx   = isMobile ? 20 : W * 0.50;
+      const SWAY = isMobile ? 0  : W * 0.07;
 
       // Use getBoundingClientRect() relative to the container's own rect.
       // This bypasses the offsetParent chain entirely and works correctly
@@ -296,7 +300,7 @@ export function Timeline() {
                   {r.projects.map((proj, j) => {
                     const { name, tags } = parseTech(proj);
                     return (
-                      <li key={j} style={{
+                      <li key={j} className={`tl-proj-item${isRight ? "" : " tl-proj-item-rev"}`} style={{
                         display: "flex",
                         flexDirection: isRight ? "row" : "row-reverse",
                         gap: "0.45rem",
@@ -307,7 +311,7 @@ export function Timeline() {
                         marginBottom: "0.35rem",
                       }}>
                         <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: "0.15em" }}>—</span>
-                        <span style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", alignItems: "baseline",
+                        <span className={`tl-proj-text${isRight ? "" : " tl-proj-text-rev"}`} style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", alignItems: "baseline",
                           justifyContent: isRight ? "flex-start" : "flex-end" }}>
                           <span>{name}</span>
                           {tags.map((tag, k) => (
@@ -343,23 +347,26 @@ export function Timeline() {
           .tl-grid { grid-template-columns: 1fr !important; }
           .tl-entry { width: 100% !important; margin-left: 0 !important; text-align: left !important; }
         }
-        /* Mobile: collapse to single-column, all entries full-width on left */
+        /* Mobile: collapse to single-column, all entries full-width on left.
+           The SVG path stays visible — buildPath() repositions it to cx=20px
+           (left gutter) when W < 720, so it becomes a straight vertical indicator. */
         @media (max-width: 768px) {
           .tl-grid { gap: var(--space-lg) !important; }
           .tl-entry {
             width: 100% !important;
             margin-left: 0 !important;
             text-align: left !important;
-            padding-left: 1.75rem !important;
+            padding-left: 2rem !important;
           }
+          /* Fix reversed bullet-list items for right-column entries on mobile */
+          .tl-proj-item-rev { flex-direction: row !important; }
+          .tl-proj-text-rev { justify-content: flex-start !important; }
         }
         @media (max-width: 640px) {
-          /* Hide SVG path/nodes on very small screens — just show the entries */
-          .tl-svg { display: none !important; }
           .tl-entry {
             padding-top: 1rem !important;
             padding-bottom: 1rem !important;
-            padding-left: 0 !important;
+            padding-left: 2rem !important;
           }
           .tl-entry h3 { font-size: 1rem !important; }
         }

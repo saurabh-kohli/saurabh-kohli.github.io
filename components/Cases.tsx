@@ -445,7 +445,7 @@ export function Cases() {
 
                 {/* ── SIDE — bottom-left absolute, display font ── */}
                 <div style={{ position: "absolute", bottom: "-1.5rem", left: "1.75rem", zIndex: 2, lineHeight: 1 }}>
-                  <span style={{
+                  <span className="rl-side" style={{
                     fontFamily: "var(--font-sloppy-hollow)",
                     fontSize: "6rem",
                     fontWeight: 400,
@@ -638,6 +638,11 @@ export function Cases() {
           }
           .rl-desc {
             -webkit-line-clamp: 3 !important;
+          }
+          /* Tone down the big display-font side text so it doesn't clash with stacked cards */
+          .rl-side {
+            font-size: 3.5rem !important;
+            opacity: 0.1 !important;
           }
         }
         @media (max-width: 480px) {

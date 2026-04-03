@@ -357,15 +357,22 @@ export function Hero() {
       </svg>
 
       <style>{`
-        @media (max-width: 1023px) {
+        @media (min-width: 641px) and (max-width: 1023px) {
           #hero {
             grid-template-columns: 1fr !important;
             padding-top: 96px !important;
           }
+          /* Hide photo on tablet — too visually noisy with text overlapping */
           .hero-photo-col { display: none !important; }
         }
         @media (max-width: 640px) {
-          .hero-photo-col { display: none !important; }
+          /* Show photo as a faint silhouette behind the text on mobile */
+          .hero-photo-col {
+            display: block !important;
+            opacity: 0.18 !important;
+            width: 100% !important;
+            pointer-events: none;
+          }
         }
       `}</style>
     </section>
