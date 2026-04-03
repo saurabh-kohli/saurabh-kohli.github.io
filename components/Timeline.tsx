@@ -92,7 +92,7 @@ export function Timeline() {
       // Use a narrow left-edge cx (20px) with no sway so the path becomes a
       // straight vertical indicator line on the left — rebuilt live via ResizeObserver.
       const isMobile = W < 720;
-      const cx   = isMobile ? 20 : W * 0.50;
+      const cx   = isMobile ? W - 20 : W * 0.50;
       const SWAY = isMobile ? 0  : W * 0.07;
 
       // Use getBoundingClientRect() relative to the container's own rect.
@@ -234,7 +234,7 @@ export function Timeline() {
       <div className="tl-grid" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "var(--space-2xl)", alignItems: "start" }}>
 
         {/* ── Left sticky heading ── */}
-        <div style={{ position: "sticky", top: 120 }}>
+        <div className="tl-sticky-head" style={{ position: "sticky", top: 120 }}>
           <h2 className="display" style={{ fontSize: "clamp(2rem,4vw,3rem)", marginBottom: "var(--space-md)", lineHeight: 1.1 }}>
             18 years.<br />Five firms.
           </h2>
@@ -345,28 +345,33 @@ export function Timeline() {
       <style>{`
         @media (max-width: 1023px) {
           .tl-grid { grid-template-columns: 1fr !important; }
-          .tl-entry { width: 100% !important; margin-left: 0 !important; text-align: left !important; }
+          /* Remove sticky from heading so it doesn't overlap entries in single-column layout */
+          .tl-sticky-head { position: relative !important; top: auto !important; }
+          .tl-entry { width: 100% !important; margin-left: 0 !important; }
         }
-        /* Mobile: collapse to single-column, all entries full-width on left.
-           The SVG path stays visible — buildPath() repositions it to cx=20px
-           (left gutter) when W < 720, so it becomes a straight vertical indicator. */
+        /* Mobile: right-aligned entries; path moves to extreme right (cx = W - 20).
+           All bullets use row-reverse so the dash sits on the right.            */
         @media (max-width: 768px) {
           .tl-grid { gap: var(--space-lg) !important; }
           .tl-entry {
             width: 100% !important;
             margin-left: 0 !important;
-            text-align: left !important;
-            padding-left: 2rem !important;
+            text-align: right !important;
+            padding-right: 2rem !important;
+            padding-left: 0 !important;
           }
-          /* Fix reversed bullet-list items for right-column entries on mobile */
-          .tl-proj-item-rev { flex-direction: row !important; }
-          .tl-proj-text-rev { justify-content: flex-start !important; }
+          /* All bullet rows: dash on the right, text on the left */
+          .tl-proj-item,
+          .tl-proj-item-rev { flex-direction: row-reverse !important; }
+          .tl-proj-text,
+          .tl-proj-text-rev { justify-content: flex-end !important; }
         }
         @media (max-width: 640px) {
           .tl-entry {
             padding-top: 1rem !important;
             padding-bottom: 1rem !important;
-            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            padding-left: 0 !important;
           }
           .tl-entry h3 { font-size: 1rem !important; }
         }

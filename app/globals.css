@@ -90,6 +90,8 @@ html {
   -moz-osx-font-smoothing: grayscale;
   cursor: none;
   scroll-behavior: auto;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* Restore pointer hand on all interactive elements so the native cursor

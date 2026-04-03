@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { asset } from "@/lib/asset";
@@ -17,6 +17,7 @@ const NAV_LINKS = [
 export function Navbar() {
   const navRef     = useRef<HTMLElement>(null);
   const feImageRef = useRef<SVGFEImageElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const nav = navRef.current;
@@ -92,9 +93,66 @@ export function Navbar() {
   return (
     <>
       <style>{`
+        /* Desktop nav links */
+        .nav-hamburger { display: none; }
+
         @media (max-width: 640px) {
-          .nav-links { gap: 1.1rem !important; }
-          .nav-link  { font-size: 0.52rem !important; letter-spacing: 0.05em !important; }
+          .nav-links { display: none !important; }
+          .nav-hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 8px;
+            background: none;
+            border: none;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+          }
+          .nav-hamburger span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: rgba(244,240,230,0.75);
+            border-radius: 1px;
+            transition: transform 0.28s ease, opacity 0.28s ease;
+          }
+          .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+          .nav-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+          .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+          .nav-mobile-menu {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: rgba(6,6,9,0.97);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+            padding: 0.5rem var(--pad-x) 1.5rem;
+            display: flex;
+            flex-direction: column;
+            z-index: 998;
+            animation: nav-slide-down 0.22s ease;
+          }
+          @keyframes nav-slide-down {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          .nav-mobile-link {
+            color: rgba(244,240,230,0.82);
+            font-size: 0.95rem;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 0.9rem 0;
+            border-bottom: 0.5px solid rgba(255,255,255,0.07);
+            transition: color 0.18s;
+          }
+          .nav-mobile-link:last-child { border-bottom: none; color: rgba(244,240,230,0.45); }
+          .nav-mobile-link:active { color: var(--red); }
         }
       `}</style>
       {/*
@@ -228,7 +286,44 @@ export function Navbar() {
             GH ↗
           </a>
         </div>
+
+        {/* ── Hamburger (mobile only) ───────────────────────────── */}
+        <button
+          className={`nav-hamburger${menuOpen ? " open" : ""}`}
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
       </nav>
+
+      {/* ── Mobile slide-down menu ───────────────────────────────── */}
+      {menuOpen && (
+        <div className="nav-mobile-menu">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="nav-mobile-link"
+              onClick={() => setMenuOpen(false)}
+            >
+              {link.label}
+            </a>
+          ))}
+          <a
+            href="https://github.com/me-saurabhkohli"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="nav-mobile-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            GH ↗
+          </a>
+        </div>
+      )}
     </>
   );
 }

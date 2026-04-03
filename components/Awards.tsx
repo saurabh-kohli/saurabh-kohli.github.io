@@ -105,16 +105,36 @@ const TIER_GLOW: Record<string, string> = {
  * dist = 0 → centre card; dist = ±1 → immediate flanking; dist = ±2 → outer flanking.
  * Cards at |dist| > 2.5 are hidden off-screen.
  */
-const xFromDist      = (dist: number) => {
-  // Non-linear: extra gap between dist=0 and dist=±1 so flanking cards
-  // don't overlap the centre card (CARD_W = 300px).
-  // dist=0 → 0, dist=±1 → ±340, dist=±2 → ±580
+const xFromDist = (dist: number) => {
+  // On mobile (< 720px): use viewport-relative steps so flanking cards
+  // peek ~12-15% of vw from each edge (3-card deck experience).
+  // On desktop: non-linear gap — dist=0→0, dist=±1→±340, dist=±2→±580.
+  const vw   = typeof window !== "undefined" ? window.innerWidth : 1440;
+  const isMob = vw < 720;
   const sign = dist < 0 ? -1 : 1;
   const abs  = Math.abs(dist);
+  if (isMob) {
+    // step ≈ 82 % of vw → flanking card peeks ~13 % from each edge
+    const step = Math.round(vw * 0.82);
+    return sign * (abs <= 1 ? abs * step : step + (abs - 1) * Math.round(vw * 0.92));
+  }
   return sign * (abs <= 1 ? abs * 340 : 340 + (abs - 1) * 240);
 };
-const scaleFromDist  = (abs: number)  => Math.max(0.36, 1 - abs * 0.24);
-const opacityFromDist = (abs: number) => (abs > 2.5 ? 0 : Math.max(0, 1 - abs * 0.38));
+const scaleFromDist = (abs: number) => {
+  const vw    = typeof window !== "undefined" ? window.innerWidth : 1440;
+  const isMob = vw < 720;
+  // On mobile, keep flanking cards closer to full size so the peek is recognisable
+  if (isMob) return Math.max(0.72, 1 - abs * 0.14);
+  return Math.max(0.36, 1 - abs * 0.24);
+};
+const opacityFromDist = (abs: number) => {
+  if (abs > 2.5) return 0;
+  const vw    = typeof window !== "undefined" ? window.innerWidth : 1440;
+  const isMob = vw < 720;
+  // On mobile, flanking cards are more visible so the peek reads clearly
+  if (isMob) return Math.max(0, 1 - abs * 0.22);
+  return Math.max(0, 1 - abs * 0.38);
+};
 const zFromDist      = (abs: number)  => Math.round(5 - abs * 2);
 
 const CARD_W          = 300;
@@ -248,12 +268,13 @@ export function Awards() {
           animation: award-border-spin 4s linear infinite;
         }
         @media (max-width: 640px) {
-          .aw-vignette { width: 36px !important; }
+          /* Narrow vignettes so peeking flanking cards aren't obscured */
+          .aw-vignette { width: 14px !important; }
           .aw-card {
             width: calc(100vw - 2.5rem) !important;
             left: 1.25rem !important;
-            height: min(400px, 72vh) !important;
-            top: calc(50% - min(200px, 36vh)) !important;
+            height: min(380px, 70vh) !important;
+            top: calc(50% - min(190px, 35vh)) !important;
           }
         }
       `}</style>

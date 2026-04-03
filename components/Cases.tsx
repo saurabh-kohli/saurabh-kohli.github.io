@@ -386,7 +386,7 @@ export function Cases() {
           }}>
 
           {/* ── Card + progress — centred in the remaining space ── */}
-          <div style={{
+          <div className="rl-card-center" style={{
             flex: 1,
             display: "flex",
             flexDirection: "column",
@@ -458,7 +458,7 @@ export function Cases() {
                 </div>
 
                 {/* ── Left column: firm+year · title · desc ── */}
-                <div style={{
+                <div className="rl-left-col" style={{
                   flex: 1,
                   display: "flex",
                   flexDirection: "column",
@@ -607,15 +607,24 @@ export function Cases() {
 
         /* ── Mobile ── */
         @media (max-width: 768px) {
+          /* Push card area below the sticky heading overlay */
+          .rl-card-center {
+            padding-top: 11rem !important;
+            justify-content: flex-start !important;
+          }
           .rl-stack {
             width: calc(100vw - 2.5rem) !important;
             height: auto !important;
-            min-height: calc(100dvh - 240px) !important;
+            min-height: calc(100dvh - 400px) !important;
           }
           .rl-card {
             flex-direction: column !important;
             padding: 3.5rem 1.2rem 1.2rem !important;
             gap: 1rem !important;
+          }
+          /* Remove gap between text and KPI cards */
+          .rl-left-col {
+            padding-bottom: 0.5rem !important;
           }
           /* Right KPI column: go full-width, horizontal row */
           .rl-card > div:last-child {
@@ -647,7 +656,7 @@ export function Cases() {
         }
         @media (max-width: 480px) {
           .rl-stack {
-            min-height: calc(100dvh - 200px) !important;
+            min-height: calc(100dvh - 420px) !important;
           }
         }
       `}</style>
