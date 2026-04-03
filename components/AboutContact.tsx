@@ -46,12 +46,27 @@ export function AboutContact() {
     const section  = sectionRef.current;
     if (!col || !svg || !path) return;
 
+    /* On mobile, left column has no natural height on first paint (its portrait
+       child is position:absolute).  Seed a sensible height immediately so
+       buildPath() never produces a zero-radius / degenerate arc, which causes
+       GSAP MotionPathPlugin to throw on some mobile browsers. */
+    const isMobilePortrait = () => window.innerWidth <= 768;
+    if (isMobilePortrait() && rightColRef.current) {
+      const rh = rightColRef.current.offsetHeight;
+      if (rh > 0) col.style.height = `${rh}px`;
+    }
+
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     /* ── Build / rebuild ellipse orbit path ─────────────────── */
     const buildPath = () => {
       const w = col.offsetWidth;
       const h = col.offsetHeight;
+
+      /* Guard: if the column has no height yet (mobile first paint), skip.
+         A zero-radius arc is a degenerate SVG path — getTotalLength() can
+         throw a DOMException in some mobile browsers (Chrome/Android). */
+      if (h <= 0 || w <= 0) return;
 
       /* Portrait fills the column height — col is already sized to match the right side via grid stretch */
       const pH = col.offsetHeight;
@@ -109,6 +124,13 @@ export function AboutContact() {
     const startOrbit = () => {
       orbitTweens.current.forEach(t => t.kill());
       orbitTweens.current = [];
+
+      /* Guard: skip orbit if the path is still degenerate (zero length).
+         getTotalLength() on a zero-radius arc throws DOMException on some
+         mobile browsers; check before invoking MotionPathPlugin. */
+      try {
+        if (!path || path.getTotalLength() < 1) return;
+      } catch { return; }
 
       ORBIT_HOBBIES.forEach((_, i) => {
         const el = thumbRefs.current[i];

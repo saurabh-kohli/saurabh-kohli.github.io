@@ -23,7 +23,9 @@ function fireConfetti() {
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
   document.body.appendChild(canvas);
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  // getContext("2d") can return null on memory-constrained mobile devices
+  if (!ctx) { canvas.remove(); return; }
   const COLORS = ["#F54E26","#ffffff","#52525b","#a1a1aa"];
   type P = { x:number;y:number;vx:number;vy:number;color:string;w:number;h:number;rot:number;rotV:number;shape:"rect"|"circle" };
   const pts: P[] = Array.from({ length: 140 }, () => ({
