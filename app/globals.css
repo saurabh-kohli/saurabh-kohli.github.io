@@ -1,0 +1,378 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Anton&family=Playfair+Display:ital,wght@1,400;1,600&display=swap');
+
+@font-face {
+  font-family: "DK Midnight Chalker";
+  src: url("/fonts/DkMidnightChalkerRegular-lGWV.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Beiruti";
+  src: url("/fonts/Beiruth.otf") format("opentype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Beiruti";
+  src: url("/fonts/Beiruth Italic.otf") format("opentype");
+  font-weight: 400 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Altruism";
+  src: url("/fonts/Altruism.otf") format("opentype"),
+       url("/fonts/Altruism.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Essence Purelight";
+  src: url("/fonts/Essence Purelight.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cravelo";
+  src: url("/fonts/Cravelo DEMO.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Party Pocket";
+  src: url("/fonts/Party Pocket DEMO.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BacklyHighs";
+  src: url("/fonts/BacklyHighs-axvrK.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Sloppy Hollow";
+  src: url("/fonts/sloppyhollow.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── DESIGN TOKENS ─────────────────────────────── */
+:root {
+  /* VSK Ultra-Dark Palette */
+  --bg:      #0a0a0a;
+  --bg-2:    #111111;
+  --bg-3:    #1c1c1c;
+  --surface: #262626;
+
+  --ink:     #ffffff;
+  --ink-2:   #a1a1aa;
+  --ink-3:   #52525b;
+
+  --border:     rgba(255,255,255,0.08);
+  --border-mid: rgba(255,255,255,0.15);
+  --border-str: rgba(255,255,255,0.25);
+
+  /* VSK Accent Palette */
+  --accent:     #F54E26;
+  --accent-dim: rgba(245,78,38,0.15);
+  
+  --red:        #F54E26;
+  --red-dim:    rgba(245,78,38,0.15);
+  --lime:       #a8cc30;
+  --lime-dim:   rgba(168,204,48,0.15);
+  --violet:     #7c5cfc;
+  --violet-dim: rgba(124,92,252,0.15);
+  --sky:        #0ea5e9;
+  --sky-dim:    rgba(14,165,233,0.15);
+  --amber:      #f59e0b;
+  --amber-dim:  rgba(245,158,11,0.15);
+
+  /* Card tints — dark */
+  --card-1: #1c2b14;
+  --card-2: #1e1a30;
+  --card-3: #2e1a1a;
+  --card-4: #1a2533;
+
+  /* ── backward-compat aliases (old components still use these) ── */
+  --accent:        var(--red);
+  --accent-dim:    var(--red-dim);
+  --text-1:        var(--ink);
+  --text-2:        var(--ink-2);
+  --text-3:        var(--ink-3);
+  --c-purple:      var(--violet);
+  --c-purple-dim:  var(--violet-dim);
+  --c-cyan:        var(--sky);
+  --c-cyan-dim:    var(--sky-dim);
+  --c-orange:      var(--amber);
+  --c-orange-dim:  var(--amber-dim);
+  --c-rose:        #f43f5e;
+  --c-rose-dim:    rgba(244,63,94,0.18);
+
+  /* Fonts */
+  --font-display:        "Inter", system-ui, sans-serif;
+  --font-body:           "Inter", system-ui, sans-serif;
+  --font-beiruti:        "Beiruti", "Noto Sans Arabic", system-ui, sans-serif;
+  --font-cravelo:        "Cravelo", system-ui, sans-serif;
+  --font-essence:        "Essence Purelight", system-ui, sans-serif;
+  --font-party-pocket:   "Party Pocket", system-ui, sans-serif;
+  --font-sloppy-hollow:  "Sloppy Hollow", system-ui, sans-serif;
+  --font-backly:         "BacklyHighs", system-ui, sans-serif;
+
+  /* Spacing */
+  --space-xs:  0.25rem;
+  --space-sm:  0.5rem;
+  --space-md:  1rem;
+  --space-lg:  2rem;
+  --space-xl:  4rem;
+  --space-2xl: 8rem;
+  --pad-x: clamp(1.5rem, 5vw, 6rem);
+}
+
+/* ─── RESET ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: clamp(14px, 1vw, 16px);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  cursor: none;
+  scroll-behavior: auto;
+}
+
+/* Restore pointer hand on all interactive elements so the native cursor
+   complements the custom dot (inline cursor:none overrides are also updated). */
+a, button, [role="button"],
+.case-card, .award-card, .writing-card, .writing-row,
+.btn-ghost, .btn-filled {
+  cursor: pointer !important;
+}
+
+body { overflow-x: hidden; min-height: 100svh; }
+
+::selection { background: var(--red); color: #fff; }
+
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; max-width: 100%; }
+
+/* ─── TYPOGRAPHY ─────────────────────────────────── */
+/* Display — Syne Bold, ALL CAPS like vsk.design */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+  text-transform: uppercase;
+}
+
+/* Capriola for stylish gooey dynamic text */
+.font-gooey {
+  font-family: 'Capriola', sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* Serif italic for accents */
+.serif-italic,
+.display-italic {
+  font-family: 'Playfair Display', Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Eyebrow label */
+.label {
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ─── LAYOUT ─────────────────────────────────────── */
+.section { padding: var(--space-xl) var(--pad-x); }
+
+.divider {
+  width: 100%;
+  height: 0.5px;
+  background: var(--border);
+  transform-origin: left center;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: var(--space-xl);
+}
+
+/* ─── ANIM INITIAL STATES ────────────────────────── */
+/* Initial states are set via GSAP gsap.set() at runtime, not CSS,
+   so text is always visible if JS/GSAP fails */
+.anim-hidden, .anim-up, .anim-clip { will-change: transform; }
+
+/* ─── TAG CHIPS ──────────────────────────────────── */
+.tag {
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border: 1px solid var(--border-mid);
+  border-radius: 100px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  background: var(--surface);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.tag:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.tag-lime   { border-color: var(--lime);   color: var(--lime);   background: var(--lime-dim); }
+.tag-violet { border-color: var(--violet); color: var(--violet); background: var(--violet-dim); }
+.tag-red    { border-color: var(--red);    color: var(--red);    background: var(--red-dim); }
+.tag-sky    { border-color: var(--sky);    color: var(--sky);    background: var(--sky-dim); }
+
+/* ─── BUTTONS ────────────────────────────────────── */
+.btn-ghost {
+  border: 1.5px solid var(--border-str);
+  color: var(--ink);
+  padding: 0.75rem 2rem;
+  border-radius: 100px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-block;
+  transition: background 0.25s, color 0.25s, border-color 0.25s;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.btn-ghost:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.btn-filled {
+  background: var(--red);
+  color: #fff;
+  padding: 0.75rem 2rem;
+  border-radius: 100px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: inline-block;
+  transition: opacity 0.2s, transform 0.2s;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.btn-filled:hover { opacity: 0.88; transform: translateY(-1px); }
+
+/* ─── WORK CARDS ─────────────────────────────────── */
+.work-card-img {
+  overflow: hidden;
+  border-radius: 8px;
+}
+.work-card:hover .work-card-img .img-fill {
+  transform: scale(1.06);
+}
+
+/* ─── EGO SLIDER ─────────────────────────────────── */
+.ego-card {
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 16px;
+  padding: var(--space-xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* ─── MANIFESTO STRIP ────────────────────────────── */
+.manifesto-strip {
+  overflow: hidden;
+  background: var(--bg-3);
+  padding: var(--space-xl) 0;
+  position: relative;
+}
+
+/* ─── FOCUS ──────────────────────────────────────── */
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* ─── MOBILE ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  html { cursor: auto; }
+  #cursor-dot, #cursor-ring { display: none !important; }
+  .section { padding: var(--space-xl) 1.25rem; }
+}
+
+/* ─── ABOUT SECTION ─────────────────────────────── */
+.about-main-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: clamp(2rem, 5vw, 6rem);
+  align-items: center;
+}
+@media (max-width: 768px) {
+  .about-main-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-xl);
+  }
+  .about-hobbies-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─── ABOUT-CONTACT SECTION — responsive stack ──── */
+@media (max-width: 768px) {
+  #about-contact {
+    padding-left: var(--pad-x) !important;
+  }
+  .ac-grid {
+    grid-template-columns: 1fr !important;
+    min-height: unset !important;
+  }
+  /* Contact copy sits on top */
+  .ac-right {
+    order: 1;
+    padding: var(--space-xl) var(--space-md) var(--space-lg) !important;
+  }
+  /* Portrait block sits below — height synced to contact block via JS */
+  .ac-left {
+    order: 2;
+    /* min-height intentionally removed: syncPortrait() sets height = rightCol.offsetHeight */
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+  }
+}
+
+/* ─── SCROLLBAR ──────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-3); }
+::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 2px; }
+
