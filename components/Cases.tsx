@@ -427,7 +427,7 @@ export function Cases() {
                 }}
               >
                 {/* ── Tags — top-right absolute ── */}
-                <div style={{
+                <div className="rl-tags" style={{
                   position: "absolute",
                   top: "1.25rem",
                   right: "1.75rem",
@@ -608,15 +608,41 @@ export function Cases() {
         /* ── Mobile ── */
         @media (max-width: 768px) {
           .rl-stack {
-            width: calc(100vw - 2rem) !important;
-            height: calc(100dvh - 220px) !important;
+            width: calc(100vw - 2.5rem) !important;
+            height: auto !important;
+            min-height: calc(100dvh - 240px) !important;
           }
           .rl-card {
             flex-direction: column !important;
-            padding: 1.4rem 1.3rem !important;
+            padding: 3.5rem 1.2rem 1.2rem !important;
+            gap: 1rem !important;
           }
+          /* Right KPI column: go full-width, horizontal row */
           .rl-card > div:last-child {
             width: 100% !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+            padding-top: 0 !important;
+          }
+          /* Tags: static so they don't overlap title; smaller pills */
+          .rl-tags {
+            position: static !important;
+            max-width: 100% !important;
+            justify-content: flex-start !important;
+            margin-bottom: 0.5rem;
+          }
+          .rl-tags .tag {
+            font-size: 0.52rem !important;
+            padding: 2px 6px !important;
+          }
+          .rl-desc {
+            -webkit-line-clamp: 3 !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .rl-stack {
+            min-height: calc(100dvh - 200px) !important;
           }
         }
       `}</style>

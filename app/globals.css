@@ -258,6 +258,32 @@ button:focus-visible, a:focus-visible {
   html { cursor: auto; }
   #cursor-dot, #cursor-ring { display: none !important; }
   .section { padding: var(--space-xl) 1.25rem; }
+
+  /* Tighten spacing tokens on small screens */
+  :root {
+    --space-xl:  2.5rem;
+    --space-2xl: 4rem;
+    --pad-x: 1.25rem;
+  }
+
+  /* Section headers should not try to space-between on tiny screens */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  /* Hero layout: full-width text, hide photo */
+  #hero {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+    padding-top: 88px !important;
+    align-items: flex-start !important;
+  }
+  #hero > div:first-child {
+    max-width: 100% !important;
+  }
+  .hero-photo-col { display: none !important; }
 }
 
 /* ─── ABOUT SECTION ─────────────────────────────── */

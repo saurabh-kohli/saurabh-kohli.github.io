@@ -243,7 +243,7 @@ export function Timeline() {
         <div ref={rightRef} style={{ position: "relative" }}>
 
           {/* SVG layer: ghost track + animated draw path + nodes + traveling dot */}
-          <svg ref={svgRef} aria-hidden="true"
+          <svg ref={svgRef} aria-hidden="true" className="tl-svg"
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}>
             <defs>
               <filter id="tl-glow" x="-60%" y="-60%" width="220%" height="220%">
@@ -342,6 +342,26 @@ export function Timeline() {
         @media (max-width: 1023px) {
           .tl-grid { grid-template-columns: 1fr !important; }
           .tl-entry { width: 100% !important; margin-left: 0 !important; text-align: left !important; }
+        }
+        /* Mobile: collapse to single-column, all entries full-width on left */
+        @media (max-width: 768px) {
+          .tl-grid { gap: var(--space-lg) !important; }
+          .tl-entry {
+            width: 100% !important;
+            margin-left: 0 !important;
+            text-align: left !important;
+            padding-left: 1.75rem !important;
+          }
+        }
+        @media (max-width: 640px) {
+          /* Hide SVG path/nodes on very small screens — just show the entries */
+          .tl-svg { display: none !important; }
+          .tl-entry {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+            padding-left: 0 !important;
+          }
+          .tl-entry h3 { font-size: 1rem !important; }
         }
       `}</style>
     </section>
