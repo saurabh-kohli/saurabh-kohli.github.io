@@ -63,11 +63,15 @@ export function Hero() {
         .fromTo(".hero-scroll",            { opacity: 0 },        { opacity: 0.5, duration: 0.5 },       0.70);
     };
 
-    // Always wait for intro to complete
-    introListener = () => buildTimeline(0.3);
-    window.addEventListener("intro-complete", introListener, { once: true });
-    // Hard fallback: reveal after 8s regardless
-    buildTimeline(8);
+    if (already) {
+      // Intro already played this session — skip the wait and reveal immediately
+      buildTimeline(0.1);
+    } else {
+      // Wait for intro to complete, with a hard 8s fallback
+      introListener = () => buildTimeline(0.3);
+      window.addEventListener("intro-complete", introListener, { once: true });
+      buildTimeline(8);
+    }
 
     // Mouse parallax on photo (subtle counter-movement)
     const xTo = gsap.quickTo(".hero-photo-col", "x", { duration: 1.2, ease: "power3.out" });

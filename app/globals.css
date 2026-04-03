@@ -90,9 +90,9 @@ html {
   -moz-osx-font-smoothing: grayscale;
   cursor: none;
   scroll-behavior: auto;
-  /* overflow-x: clip does NOT create a scroll container (unlike hidden),
-     so position: sticky and GSAP ScrollTrigger keep working on mobile.   */
-  overflow-x: clip;
+  /* No overflow-x set on html — body handles the clip below.
+     Setting any overflow on html triggers implicit overflow-y behaviour
+     that can interfere with Lenis / GSAP ScrollTrigger on desktop. */
 }
 
 /* Restore pointer hand on all interactive elements so the native cursor
