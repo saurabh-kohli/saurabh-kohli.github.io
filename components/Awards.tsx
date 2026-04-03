@@ -114,8 +114,8 @@ const xFromDist = (dist: number) => {
   const sign = dist < 0 ? -1 : 1;
   const abs  = Math.abs(dist);
   if (isMob) {
-    // step ≈ 82 % of vw → flanking card peeks ~13 % from each edge
-    const step = Math.round(vw * 0.82);
+    // step ≈ 74 % of vw → flanking card peeks ~44px from each edge with 72vw card
+    const step = Math.round(vw * 0.74);
     return sign * (abs <= 1 ? abs * step : step + (abs - 1) * Math.round(vw * 0.92));
   }
   return sign * (abs <= 1 ? abs * 340 : 340 + (abs - 1) * 240);
@@ -271,8 +271,10 @@ export function Awards() {
           /* Narrow vignettes so peeking flanking cards aren't obscured */
           .aw-vignette { width: 14px !important; }
           .aw-card {
-            width: calc(100vw - 2.5rem) !important;
-            left: 1.25rem !important;
+            /* 72 vw card (~270px on 375px) leaves ~52px on each side for centering
+               and ~44px peek from each flanking card */
+            width: 72vw !important;
+            left: calc(50% - 36vw) !important;
             height: min(380px, 70vh) !important;
             top: calc(50% - min(190px, 35vh)) !important;
           }

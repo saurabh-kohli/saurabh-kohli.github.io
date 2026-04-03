@@ -612,11 +612,11 @@ export function Cases() {
             padding-top: 11rem !important;
             justify-content: flex-start !important;
           }
-          /* Fixed stable height — avoids shrink/grow when browser chrome toggles
-             and ensures KPI-wrapping cards never clip their content */
+          /* Taller card so KPI section sits higher and the decorative
+             side-text has room to peek from the bottom edge */
           .rl-stack {
             width: calc(100vw - 2.5rem) !important;
-            height: clamp(420px, 62svh, 560px) !important;
+            height: clamp(480px, 72svh, 620px) !important;
           }
           /* Column layout; top padding matches sides — static tags flow from top */
           .rl-card {
@@ -624,8 +624,10 @@ export function Cases() {
             padding: 1.2rem !important;
             gap: 1rem !important;
           }
-          /* Remove gap between text and KPI cards */
+          /* Shrink to content so KPI cards sit right below the text,
+             not pinned to the card bottom */
           .rl-left-col {
+            flex: 0 0 auto !important;
             padding-bottom: 0.5rem !important;
           }
           /* Right KPI column: go full-width, horizontal row */
@@ -647,17 +649,17 @@ export function Cases() {
             font-size: 0.52rem !important;
             padding: 2px 6px !important;
           }
+          /* Show full description — enough space with taller card */
           .rl-desc {
-            -webkit-line-clamp: 3 !important;
+            -webkit-line-clamp: unset !important;
+            display: block !important;
+            overflow: visible !important;
           }
-          /* Decorative side text: pull back inside card bounds + subtle opacity */
-          .rl-side-wrap {
-            bottom: 0.5rem !important;
-            left: 1.2rem !important;
-          }
+          /* Decorative side text: restore original bottom: -1.5rem from inline style
+             so it peeks from the card's bottom edge as designed; remove opacity
+             override so inline opacity: 0.4 applies */
           .rl-side {
             font-size: 3rem !important;
-            opacity: 0.18 !important;
           }
         }
       `}</style>

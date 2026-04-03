@@ -182,8 +182,9 @@ export function Timeline() {
           const isMobile = container.offsetWidth < 720;
 
           if (isMobile) {
-            // Trigger when the entry's title mid-point crosses 60% of the viewport height
-            const vhMid = window.innerHeight * 0.60;
+            // Trigger when the entry's title mid-point crosses 70% of the viewport height
+            // (70% = lower in viewport → entries reveal as soon as they're clearly visible)
+            const vhMid = window.innerHeight * 0.70;
             entryRefs.current.forEach((el, i) => {
               if (!el || revealed.has(i)) return;
               const titleEl = titleRefs.current[i];
@@ -375,19 +376,21 @@ export function Timeline() {
       <style>{`
         @media (max-width: 1023px) {
           .tl-grid { grid-template-columns: 1fr !important; }
-          /* Restore sticky with background so entries scroll cleanly beneath it */
+          /* Sticky header: gradient fade so entries scrolling beneath are
+             visible through the transparent bottom portion */
           .tl-sticky-head {
             position: sticky !important;
             top: 70px !important;
-            background: var(--bg) !important;
+            background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 72%, transparent 100%) !important;
             z-index: 10 !important;
-            padding-bottom: 1.25rem !important;
+            padding-bottom: 2rem !important;
           }
           /* Ensure subtitle text wraps and never overflows into entry blocks */
           .tl-sticky-head p {
             max-width: 100% !important;
             white-space: normal !important;
             overflow-wrap: break-word !important;
+            word-break: break-word !important;
           }
           .tl-entry { width: 100% !important; margin-left: 0 !important; }
         }
