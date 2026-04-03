@@ -107,6 +107,17 @@ export function Testimonials() {
 
   return (
     <section id="recommendations" aria-label="Recommendations">
+      <style>{`
+        @media (max-width: 640px) {
+          .tm-heading-band {
+            padding-top: 1.25rem !important;
+            padding-bottom: 0.75rem !important;
+          }
+          .tm-heading-band .divider { margin-bottom: 1rem !important; }
+          .tm-quote { font-size: 3.5rem !important; line-height: 0.7 !important; }
+          .tm-card { gap: 0.75rem !important; padding: 1.25rem var(--pad-x) !important; }
+        }
+      `}</style>
       {/*
        * Tall wrapper — provides the vertical scroll distance that drives
        * the horizontal pan. Height = one stuck viewport + extra scroll.
@@ -129,6 +140,7 @@ export function Testimonials() {
         >
           {/* ── Heading band ── */}
           <div
+            className="tm-heading-band"
             style={{
               flexShrink: 0,
               padding: "var(--space-xl) var(--pad-x) var(--space-lg)",
@@ -189,6 +201,7 @@ export function Testimonials() {
               <div
                 key={i}
                 ref={(el) => { cardRefs.current[i] = el; }}
+                className="tm-card"
                 style={{
                   position: "absolute",
                   inset: 0,
@@ -207,7 +220,7 @@ export function Testimonials() {
               >
                 {/* Quote glyph */}
                 <div
-                  className="display"
+                  className="display tm-quote"
                   style={{
                     fontSize: "clamp(5rem, 10vw, 9rem)",
                     color: t.accentColor,

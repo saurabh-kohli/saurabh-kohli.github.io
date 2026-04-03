@@ -247,6 +247,15 @@ export function Awards() {
         .award-border-spin {
           animation: award-border-spin 4s linear infinite;
         }
+        @media (max-width: 640px) {
+          .aw-vignette { width: 36px !important; }
+          .aw-card {
+            width: calc(100vw - 2.5rem) !important;
+            left: 1.25rem !important;
+            height: min(400px, 72vh) !important;
+            top: calc(50% - min(200px, 36vh)) !important;
+          }
+        }
       `}</style>
       <section id="awards" aria-label="Recognition" className="section">
 
@@ -314,6 +323,7 @@ export function Awards() {
                   key={i}
                   ref={(el) => { cardRefs.current[i] = el; }}
                   aria-label={award.name}
+                  className="aw-card"
                   style={{
                     position:     "absolute",
                     left:         `calc(50% - ${CARD_W / 2}px)`,
@@ -497,7 +507,7 @@ export function Awards() {
             })}
 
             {/* ── Edge vignettes ── */}
-            <div style={{
+            <div className="aw-vignette" style={{
               position:      "absolute",
               top: 0, left: 0,
               width:         "140px",
@@ -506,7 +516,7 @@ export function Awards() {
               pointerEvents: "none",
               zIndex:        10,
             }} />
-            <div style={{
+            <div className="aw-vignette" style={{
               position:      "absolute",
               top: 0, right: 0,
               width:         "140px",

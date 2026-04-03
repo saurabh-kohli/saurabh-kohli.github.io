@@ -91,6 +91,12 @@ export function Navbar() {
 
   return (
     <>
+      <style>{`
+        @media (max-width: 640px) {
+          .nav-links { gap: 1.1rem !important; }
+          .nav-link  { font-size: 0.52rem !important; letter-spacing: 0.05em !important; }
+        }
+      `}</style>
       {/*
         ── Hidden SVG that defines the liquid-glass displacement filter ──────
         Must live in the document for backdrop-filter: url(#…) to resolve.
@@ -196,7 +202,7 @@ export function Navbar() {
         </a>
 
         {/* ── Nav links ────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", gap: "2.5rem" }}>
+        <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: "2.5rem" }}>
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
