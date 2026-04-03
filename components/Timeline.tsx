@@ -174,23 +174,53 @@ export function Timeline() {
           const pt = path.getPointAtLength(p * len);
           gsap.set(dot, { attr: { cx: pt.x.toFixed(1), cy: pt.y.toFixed(1) }, opacity: p > 0.02 ? 1 : 0 });
 
-          // 3. Reveal entries + pop nodes as dot reaches each waypoint
+          // 3. Reveal entries + pop nodes as dot reaches each waypoint.
+          // On mobile the container is much taller than the viewport, so the
+          // linear sp = p*(N-1) mapping fires too late for lower entries.
+          // Instead, check each title's actual viewport position directly.
           const sp = p * (N - 1); // 0 → 4
-          entryRefs.current.forEach((el, i) => {
-            if (!el || revealed.has(i)) return;
-            if (sp >= i - 0.12) {
-              revealed.add(i);
-              gsap.to(el, { autoAlpha: 1, x: 0, duration: 0.55, ease: "power2.out" });
-            }
-          });
-          nodeRefs.current.forEach((node, i) => {
-            if (!node || nodedone.has(i)) return;
-            if (sp >= i - 0.08) {
-              nodedone.add(i);
-              // Grow r from 0 → 5.5 — no transforms, so no origin issues ever.
-              gsap.to(node, { attr: { r: 5.5 }, duration: 0.4, ease: "back.out(2.5)" });
-            }
-          });
+          const isMobile = container.offsetWidth < 720;
+
+          if (isMobile) {
+            // Trigger when the entry's title mid-point crosses 60% of the viewport height
+            const vhMid = window.innerHeight * 0.60;
+            entryRefs.current.forEach((el, i) => {
+              if (!el || revealed.has(i)) return;
+              const titleEl = titleRefs.current[i];
+              if (!titleEl) return;
+              const { top, height } = titleEl.getBoundingClientRect();
+              if (top + height * 0.5 <= vhMid) {
+                revealed.add(i);
+                gsap.to(el, { autoAlpha: 1, x: 0, duration: 0.55, ease: "power2.out" });
+              }
+            });
+            nodeRefs.current.forEach((node, i) => {
+              if (!node || nodedone.has(i)) return;
+              const titleEl = titleRefs.current[i];
+              if (!titleEl) return;
+              const { top, height } = titleEl.getBoundingClientRect();
+              if (top + height * 0.5 <= vhMid) {
+                nodedone.add(i);
+                gsap.to(node, { attr: { r: 5.5 }, duration: 0.4, ease: "back.out(2.5)" });
+              }
+            });
+          } else {
+            entryRefs.current.forEach((el, i) => {
+              if (!el || revealed.has(i)) return;
+              if (sp >= i - 0.12) {
+                revealed.add(i);
+                gsap.to(el, { autoAlpha: 1, x: 0, duration: 0.55, ease: "power2.out" });
+              }
+            });
+            nodeRefs.current.forEach((node, i) => {
+              if (!node || nodedone.has(i)) return;
+              if (sp >= i - 0.08) {
+                nodedone.add(i);
+                // Grow r from 0 → 5.5 — no transforms, so no origin issues ever.
+                gsap.to(node, { attr: { r: 5.5 }, duration: 0.4, ease: "back.out(2.5)" });
+              }
+            });
+          }
 
           // 4. Elastic pulse at each waypoint
           const nearest = Math.round(sp);
@@ -345,8 +375,20 @@ export function Timeline() {
       <style>{`
         @media (max-width: 1023px) {
           .tl-grid { grid-template-columns: 1fr !important; }
-          /* Remove sticky from heading so it doesn't overlap entries in single-column layout */
-          .tl-sticky-head { position: relative !important; top: auto !important; }
+          /* Restore sticky with background so entries scroll cleanly beneath it */
+          .tl-sticky-head {
+            position: sticky !important;
+            top: 70px !important;
+            background: var(--bg) !important;
+            z-index: 10 !important;
+            padding-bottom: 1.25rem !important;
+          }
+          /* Ensure subtitle text wraps and never overflows into entry blocks */
+          .tl-sticky-head p {
+            max-width: 100% !important;
+            white-space: normal !important;
+            overflow-wrap: break-word !important;
+          }
           .tl-entry { width: 100% !important; margin-left: 0 !important; }
         }
         /* Mobile: right-aligned entries; path moves to extreme right (cx = W - 20).

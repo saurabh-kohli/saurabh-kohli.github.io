@@ -444,7 +444,7 @@ export function Cases() {
                 </div>
 
                 {/* ── SIDE — bottom-left absolute, display font ── */}
-                <div style={{ position: "absolute", bottom: "-1.5rem", left: "1.75rem", zIndex: 2, lineHeight: 1 }}>
+                <div className="rl-side-wrap" style={{ position: "absolute", bottom: "-1.5rem", left: "1.75rem", zIndex: 2, lineHeight: 1 }}>
                   <span className="rl-side" style={{
                     fontFamily: "var(--font-sloppy-hollow)",
                     fontSize: "6rem",
@@ -612,14 +612,16 @@ export function Cases() {
             padding-top: 11rem !important;
             justify-content: flex-start !important;
           }
+          /* Fixed stable height — avoids shrink/grow when browser chrome toggles
+             and ensures KPI-wrapping cards never clip their content */
           .rl-stack {
             width: calc(100vw - 2.5rem) !important;
-            height: auto !important;
-            min-height: calc(100dvh - 400px) !important;
+            height: clamp(420px, 62svh, 560px) !important;
           }
+          /* Column layout; top padding matches sides — static tags flow from top */
           .rl-card {
             flex-direction: column !important;
-            padding: 3.5rem 1.2rem 1.2rem !important;
+            padding: 1.2rem !important;
             gap: 1rem !important;
           }
           /* Remove gap between text and KPI cards */
@@ -648,15 +650,14 @@ export function Cases() {
           .rl-desc {
             -webkit-line-clamp: 3 !important;
           }
-          /* Tone down the big display-font side text so it doesn't clash with stacked cards */
-          .rl-side {
-            font-size: 3.5rem !important;
-            opacity: 0.1 !important;
+          /* Decorative side text: pull back inside card bounds + subtle opacity */
+          .rl-side-wrap {
+            bottom: 0.5rem !important;
+            left: 1.2rem !important;
           }
-        }
-        @media (max-width: 480px) {
-          .rl-stack {
-            min-height: calc(100dvh - 420px) !important;
+          .rl-side {
+            font-size: 3rem !important;
+            opacity: 0.18 !important;
           }
         }
       `}</style>
