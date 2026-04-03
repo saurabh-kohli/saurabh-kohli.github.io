@@ -6,7 +6,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const ROLES = [
   {
-    years: "2018–Present", title: "Senior Vice President",     firm: "BNY, New York",
+    years: "2018–Present", title: "Senior Principal Full Stack",     firm: "BNY, New York",
     projects: [
       "Portfolio Construction Platform",
       "Unified Design System",

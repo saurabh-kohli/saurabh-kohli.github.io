@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
+import { asset } from "@/lib/asset";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -312,7 +313,7 @@ export function Hero() {
           height: "100%",
         }}>
           <Image
-            src="/saurabh-transparent.png"
+            src={asset("/saurabh-transparent.png")}
             alt="Saurabh Kohli"
             fill
             style={{

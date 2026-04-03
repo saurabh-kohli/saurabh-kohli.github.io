@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
+import { asset } from "@/lib/asset";
 
 const CREDENTIALS = [
   "ARCHITECT",
@@ -218,7 +219,7 @@ export function Intro() {
       }}>
         <div ref={logoRef} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/sk-logo.gif" alt="SK" width={320} height={320} style={{ borderRadius: 16 }} />
+          <img src={asset("/sk-logo.gif")} alt="SK" width={320} height={320} style={{ borderRadius: 16 }} />
         </div>
 
         <div

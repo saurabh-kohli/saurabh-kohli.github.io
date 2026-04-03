@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import Image from "next/image";
+import { asset } from "@/lib/asset";
 
 gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
 
@@ -360,7 +361,7 @@ export function AboutContact() {
             }}
           >
             <Image
-              src="/saurabh - 3.png"
+              src={asset("/saurabh - 3.png")}
               alt="Saurabh Kohli"
               width={620}
               height={860}

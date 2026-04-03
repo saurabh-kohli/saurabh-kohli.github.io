@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { asset } from "@/lib/asset";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -186,7 +187,7 @@ export function Navbar() {
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1"; }}
         >
           <img
-            src="/sk-logo.svg"
+            src={asset("/sk-logo.svg")}
             alt="SK Logo"
             width={38}
             height={38}

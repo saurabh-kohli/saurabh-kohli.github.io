@@ -5,6 +5,60 @@ import { Cursor } from "@/components/Cursor";
 import { LenisProvider } from "@/components/LenisProvider";
 import { Intro } from "@/components/Intro";
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+/** Inline @font-face block with the correct basePath prefix baked in at build time */
+function FontFaces() {
+  const css = `
+@font-face {
+  font-family: "DK Midnight Chalker";
+  src: url("${BASE}/fonts/DkMidnightChalkerRegular-lGWV.otf") format("opentype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Beiruti";
+  src: url("${BASE}/fonts/Beiruth.otf") format("opentype");
+  font-weight: 400 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Beiruti";
+  src: url("${BASE}/fonts/Beiruth Italic.otf") format("opentype");
+  font-weight: 400 900; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: "Altruism";
+  src: url("${BASE}/fonts/Altruism.otf") format("opentype"),
+       url("${BASE}/fonts/Altruism.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Essence Purelight";
+  src: url("${BASE}/fonts/Essence Purelight.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Cravelo";
+  src: url("${BASE}/fonts/Cravelo DEMO.otf") format("opentype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Party Pocket";
+  src: url("${BASE}/fonts/Party Pocket DEMO.otf") format("opentype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "BacklyHighs";
+  src: url("${BASE}/fonts/BacklyHighs-axvrK.otf") format("opentype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Sloppy Hollow";
+  src: url("${BASE}/fonts/sloppyhollow.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}`.trim();
+  return <style dangerouslySetInnerHTML={{ __html: css }} />;
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://saurabhkohli.dev"),
   title: "Saurabh Kohli — Principal Full Stack Engineer",
@@ -31,6 +85,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <FontFaces />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
