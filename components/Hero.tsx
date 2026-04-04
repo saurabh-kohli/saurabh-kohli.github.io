@@ -217,6 +217,85 @@ export function Hero() {
     const ellipse    = outlineEllipseRef.current;
     if (!cursor) return;
 
+    // ── Offscreen canvas for per-pixel transparency hit-testing ──────────
+    // Loads the transparent PNG (same subject as saurabh.svg) for reliable
+    // canvas access. getImageData(x,y).data[3] tells us the alpha at that pixel
+    // so we only trigger cursor effects over the actual visible person.
+    const offscreen = document.createElement("canvas");
+    const offCtx    = offscreen.getContext("2d", { willReadFrequently: true });
+    let imgLoaded = false;
+    let natW = 1, natH = 1;
+
+    const hitImg = new window.Image();
+    hitImg.onload = () => {
+      natW = hitImg.naturalWidth;
+      natH = hitImg.naturalHeight;
+      offscreen.width  = natW;
+      offscreen.height = natH;
+      offCtx?.drawImage(hitImg, 0, 0);
+      imgLoaded = true;
+      // Now that we know image dimensions, position the SVG outline accurately
+      const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
+      if (photoEl) positionEllipse(photoEl.getBoundingClientRect());
+    };
+    hitImg.src = "/saurabh-transparent.png";
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    // Returns screen-space bounding rect of the image as rendered by
+    // objectFit:contain + objectPosition:bottom-right inside its container.
+    const getRenderedRect = (c: DOMRect) => {
+      const scale = Math.min(c.width / natW, c.height / natH); // "contain" scale
+      const rW = natW * scale;
+      const rH = natH * scale;
+      return {                                    // right- and bottom-aligned
+        left:   c.left + c.width  - rW,
+        top:    c.top  + c.height - rH,
+        right:  c.left + c.width,
+        bottom: c.top  + c.height,
+        width:  rW,
+        height: rH,
+      };
+    };
+
+    // Returns true only if (cx,cy) is over a non-transparent pixel of the portrait.
+    const isOverPerson = (
+      cx: number, cy: number,
+      r: ReturnType<typeof getRenderedRect>,
+    ): boolean => {
+      if (!imgLoaded || !offCtx) return false;
+      if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return false;
+      const pX = Math.floor((cx - r.left) / r.width  * natW);
+      const pY = Math.floor((cy - r.top)  / r.height * natH);
+      if (pX < 0 || pX >= natW || pY < 0 || pY >= natH) return false;
+      try { return offCtx.getImageData(pX, pY, 1, 1).data[3] > 25; }
+      catch { return false; }
+    };
+
+    // Positions the SVG outline ellipse to wrap the rendered image exactly,
+    // expressed as % of the photo-col container so it stays responsive.
+    const positionEllipse = (c: DOMRect) => {
+      if (!ellipse || !imgLoaded) return;
+      const scale = Math.min(c.width / natW, c.height / natH);
+      const rW = natW * scale;
+      const rH = natH * scale;
+      // Image is anchored to right+bottom of the container
+      const offsetX = c.width  - rW;  // px from container left to image left
+      const offsetY = c.height - rH;  // px from container top  to image top
+      // Centre of the rendered image in container-% coords
+      const cxPct = (offsetX + rW / 2) / c.width  * 100;
+      const cyPct = (offsetY + rH / 2) / c.height * 100;
+      // Half-radii — shrink slightly inside the image boundary so stroke sits
+      // just inside the visible person rather than on the empty canvas margin
+      const rxPct = (rW / 2) / c.width  * 100 * 0.88;
+      const ryPct = (rH / 2) / c.height * 100 * 0.91;
+      ellipse.setAttribute("cx", `${cxPct.toFixed(1)}%`);
+      ellipse.setAttribute("cy", `${cyPct.toFixed(1)}%`);
+      ellipse.setAttribute("rx", `${rxPct.toFixed(1)}%`);
+      ellipse.setAttribute("ry", `${ryPct.toFixed(1)}%`);
+    };
+
+    // ── State ────────────────────────────────────────────────────────────
     let hoverActive = false;
     let hoverStart: number | null = null;
     let msgTimer: ReturnType<typeof setInterval> | null = null;
@@ -225,11 +304,11 @@ export function Hero() {
     // Park off-screen; CSS class handles initial opacity:0
     gsap.set(cursor, { x: -400, y: -400, scale: 0.9 });
 
-    // Figma cursor tracks mouse with very tight lag (near-instant)
+    // Figma cursor tracks mouse with near-instant lag
     const cxTo = gsap.quickTo(cursor, "x", { duration: 0.07, ease: "power1.out" });
     const cyTo = gsap.quickTo(cursor, "y", { duration: 0.07, ease: "power1.out" });
 
-    // Continuous ambient turbulence animation — keeps the outline alive
+    // Continuous turbulence loop — keeps the outline alive
     const waveTl = turb
       ? gsap.timeline({ repeat: -1 })
           .to(turb, { attr: { baseFrequency: "0.020 0.010" }, duration: 3.5, ease: "sine.inOut" })
@@ -237,32 +316,30 @@ export function Hero() {
           .to(turb, { attr: { baseFrequency: "0.015 0.013" }, duration: 3.0, ease: "sine.inOut" })
       : null;
 
+    // ── Handlers ─────────────────────────────────────────────────────────
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
       if (!photoEl) return;
-      const rect  = photoEl.getBoundingClientRect();
-      const inX   = e.clientX >= rect.left + rect.width * 0.15 && e.clientX <= rect.right;
-      const inY   = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
-      const isOver = inX && inY;
+      const rect     = photoEl.getBoundingClientRect();
+      const rendered = getRenderedRect(rect);
+      // Pixel-accurate: only true when cursor is over a non-transparent pixel
+      const isOver   = isOverPerson(e.clientX, e.clientY, rendered);
 
-      // Figma cursor tip aligns exactly with the mouse pointer
+      // Figma cursor tip tracks mouse exactly
       cxTo(e.clientX);
       cyTo(e.clientY);
 
       if (isOver && !hoverActive) {
-        // ── ENTER ──────────────────────────────────────────────────────
+        // ── ENTER ────────────────────────────────────────────────────
         hoverActive = true;
         hoverStart  = Date.now();
 
-        // Appear: Figma cursor slides in
         gsap.set(cursor, { scale: 0.85, opacity: 0 });
         gsap.to(cursor, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(1.6)" });
 
-        // SVG outline: fade in + crank up displacement for organic warp
         if (outlineSvg) gsap.to(outlineSvg, { opacity: 1, duration: 0.55, ease: "power2.out" });
         if (disp)       gsap.to(disp, { attr: { scale: 24 }, duration: 1.1, ease: "power2.out" });
 
-        // Message timer — fully resets every new hover session
         msgTimer = setInterval(() => {
           const elapsed = hoverStart ? Date.now() - hoverStart : 0;
           let newIdx = 0;
@@ -273,45 +350,47 @@ export function Hero() {
           if (newIdx !== curIdx) {
             curIdx = newIdx;
             setMsgIdx(newIdx);
-            // Sync outline stroke colour with the badge colour
             if (ellipse) ellipse.style.stroke = BUBBLE_COLORS[newIdx];
             if (newIdx === CURSOR_MESSAGES.length - 1) fireConfetti();
           }
         }, 200);
 
       } else if (!isOver && hoverActive) {
-        // ── EXIT ───────────────────────────────────────────────────────
+        // ── EXIT ─────────────────────────────────────────────────────
         hoverActive = false;
         hoverStart  = null;
         if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
 
-        // Reset message so next hover restarts from the first
         curIdx = 0;
         setMsgIdx(0);
         if (ellipse) ellipse.style.stroke = BUBBLE_COLORS[0];
 
-        // Hide Figma cursor
-        gsap.to(cursor, { opacity: 0, scale: 0.85, duration: 0.22 });
-
-        // Wind down outline: reduce warp then fade out
-        if (disp)       gsap.to(disp, { attr: { scale: 0 }, duration: 0.75, ease: "power2.inOut" });
+        gsap.to(cursor,     { opacity: 0, scale: 0.85, duration: 0.22 });
+        if (disp)       gsap.to(disp,       { attr: { scale: 0 }, duration: 0.75, ease: "power2.inOut" });
         if (outlineSvg) gsap.to(outlineSvg, { opacity: 0, x: 0, y: 0, duration: 0.5, delay: 0.55 });
       }
 
-      // Magnetic pull: outline drifts toward cursor while hovering
-      if (isOver && outlineSvg) {
-        const relX  = (e.clientX - rect.left) / rect.width;   // 0 – 1
-        const relY  = (e.clientY - rect.top)  / rect.height;  // 0 – 1
-        // Person is at ~70% from the left edge of the photo column
-        const pullX = (relX - 0.70) * 20;
+      // Magnetic pull: outline drifts toward cursor relative to image centre
+      if (isOver && outlineSvg && imgLoaded) {
+        const relX  = (e.clientX - rendered.left) / rendered.width;   // 0 – 1
+        const relY  = (e.clientY - rendered.top)  / rendered.height;  // 0 – 1
+        const pullX = (relX - 0.50) * 22;
         const pullY = (relY - 0.50) * 14;
         gsap.to(outlineSvg, { x: pullX, y: pullY, duration: 0.85, ease: "power2.out", overwrite: "auto" });
       }
     };
 
+    // Reposition outline when viewport resizes (objectFit layout changes)
+    const handleResize = () => {
+      const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
+      if (photoEl && imgLoaded) positionEllipse(photoEl.getBoundingClientRect());
+    };
+
     window.addEventListener("mousemove", handleMove);
+    window.addEventListener("resize",    handleResize);
     return () => {
       window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("resize",    handleResize);
       if (msgTimer) clearInterval(msgTimer);
       if (waveTl)   waveTl.kill();
     };
