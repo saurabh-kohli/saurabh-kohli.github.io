@@ -106,7 +106,7 @@ export function Hero() {
   const photoOutlineSvgRef   = useRef<SVGSVGElement>(null);          // SVG morphing outline
   const turbRef              = useRef<SVGFETurbulenceElement>(null);  // feTurbulence node
   const displaceRef          = useRef<SVGFEDisplacementMapElement>(null); // feDisplacementMap
-  const outlineEllipseRef    = useRef<SVGEllipseElement>(null);      // outline ellipse
+  const floodRef             = useRef<SVGFEFloodElement>(null);      // feFlood — color control
   const [msgIdx, setMsgIdx] = useState(0);
 
   useEffect(() => {
@@ -214,7 +214,7 @@ export function Hero() {
     const outlineSvg = photoOutlineSvgRef.current;
     const turb       = turbRef.current;
     const disp       = displaceRef.current;
-    const ellipse    = outlineEllipseRef.current;
+    const flood      = floodRef.current;
     if (!cursor) return;
 
     // ── Offscreen canvas for per-pixel transparency hit-testing ──────────
@@ -234,9 +234,6 @@ export function Hero() {
       offscreen.height = natH;
       offCtx?.drawImage(hitImg, 0, 0);
       imgLoaded = true;
-      // Now that we know image dimensions, position the SVG outline accurately
-      const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
-      if (photoEl) positionEllipse(photoEl.getBoundingClientRect());
     };
     hitImg.src = "/saurabh-transparent.png";
 
@@ -272,29 +269,6 @@ export function Hero() {
       catch { return false; }
     };
 
-    // Positions the SVG outline ellipse to wrap the rendered image exactly,
-    // expressed as % of the photo-col container so it stays responsive.
-    const positionEllipse = (c: DOMRect) => {
-      if (!ellipse || !imgLoaded) return;
-      const scale = Math.min(c.width / natW, c.height / natH);
-      const rW = natW * scale;
-      const rH = natH * scale;
-      // Image is anchored to right+bottom of the container
-      const offsetX = c.width  - rW;  // px from container left to image left
-      const offsetY = c.height - rH;  // px from container top  to image top
-      // Centre of the rendered image in container-% coords
-      const cxPct = (offsetX + rW / 2) / c.width  * 100;
-      const cyPct = (offsetY + rH / 2) / c.height * 100;
-      // Half-radii — shrink slightly inside the image boundary so stroke sits
-      // just inside the visible person rather than on the empty canvas margin
-      const rxPct = (rW / 2) / c.width  * 100 * 0.88;
-      const ryPct = (rH / 2) / c.height * 100 * 0.91;
-      ellipse.setAttribute("cx", `${cxPct.toFixed(1)}%`);
-      ellipse.setAttribute("cy", `${cyPct.toFixed(1)}%`);
-      ellipse.setAttribute("rx", `${rxPct.toFixed(1)}%`);
-      ellipse.setAttribute("ry", `${ryPct.toFixed(1)}%`);
-    };
-
     // ── State ────────────────────────────────────────────────────────────
     let hoverActive = false;
     let hoverStart: number | null = null;
@@ -308,7 +282,7 @@ export function Hero() {
     const cxTo = gsap.quickTo(cursor, "x", { duration: 0.07, ease: "power1.out" });
     const cyTo = gsap.quickTo(cursor, "y", { duration: 0.07, ease: "power1.out" });
 
-    // Continuous turbulence loop — keeps the outline alive
+    // Continuous turbulence loop — keeps the outline wavy while hovering
     const waveTl = turb
       ? gsap.timeline({ repeat: -1 })
           .to(turb, { attr: { baseFrequency: "0.020 0.010" }, duration: 3.5, ease: "sine.inOut" })
@@ -338,7 +312,7 @@ export function Hero() {
         gsap.to(cursor, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(1.6)" });
 
         if (outlineSvg) gsap.to(outlineSvg, { opacity: 1, duration: 0.55, ease: "power2.out" });
-        if (disp)       gsap.to(disp, { attr: { scale: 24 }, duration: 1.1, ease: "power2.out" });
+        if (disp)       gsap.to(disp, { attr: { scale: 28 }, duration: 1.1, ease: "power2.out" });
 
         msgTimer = setInterval(() => {
           const elapsed = hoverStart ? Date.now() - hoverStart : 0;
@@ -350,7 +324,8 @@ export function Hero() {
           if (newIdx !== curIdx) {
             curIdx = newIdx;
             setMsgIdx(newIdx);
-            if (ellipse) ellipse.style.stroke = BUBBLE_COLORS[newIdx];
+            // Recolour the outline ring via feFlood flood-color
+            if (flood) flood.setAttribute("flood-color", BUBBLE_COLORS[newIdx]);
             if (newIdx === CURSOR_MESSAGES.length - 1) fireConfetti();
           }
         }, 200);
@@ -363,7 +338,7 @@ export function Hero() {
 
         curIdx = 0;
         setMsgIdx(0);
-        if (ellipse) ellipse.style.stroke = BUBBLE_COLORS[0];
+        if (flood) flood.setAttribute("flood-color", BUBBLE_COLORS[0]);
 
         gsap.to(cursor,     { opacity: 0, scale: 0.85, duration: 0.22 });
         if (disp)       gsap.to(disp,       { attr: { scale: 0 }, duration: 0.75, ease: "power2.inOut" });
@@ -380,17 +355,9 @@ export function Hero() {
       }
     };
 
-    // Reposition outline when viewport resizes (objectFit layout changes)
-    const handleResize = () => {
-      const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
-      if (photoEl && imgLoaded) positionEllipse(photoEl.getBoundingClientRect());
-    };
-
     window.addEventListener("mousemove", handleMove);
-    window.addEventListener("resize",    handleResize);
     return () => {
       window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("resize",    handleResize);
       if (msgTimer) clearInterval(msgTimer);
       if (waveTl)   waveTl.kill();
     };
@@ -621,7 +588,7 @@ export function Hero() {
             priority
           />
 
-          {/* ── Wavy magnetic SVG outline around portrait ── */}
+          {/* ── Wavy morphing outline — traces the actual person silhouette ── */}
           <svg
             ref={photoOutlineSvgRef}
             aria-hidden
@@ -637,8 +604,15 @@ export function Hero() {
             }}
           >
             <defs>
-              <filter id="portrait-morph" x="-30%" y="-20%" width="160%" height="140%">
-                {/* Continuous noise drives the displacement */}
+              {/*
+                Silhouette-tracing outline filter:
+                1. feTurbulence  — generates noise for the wavy displacement
+                2. feMorphology  — dilates the person's alpha mask outward
+                3. feDisplacementMap — distorts the dilated shape with noise (scale=0 at rest, animated on hover)
+                4. feComposite(out) — subtracts the original silhouette → leaves only the ring
+                5. feFlood + feComposite(in) — fills the ring with a solid accent colour
+              */}
+              <filter id="portrait-morph" x="-20%" y="-15%" width="140%" height="130%">
                 <feTurbulence
                   ref={turbRef}
                   type="fractalNoise"
@@ -647,33 +621,40 @@ export function Hero() {
                   seed="7"
                   result="noise"
                 />
-                {/* Displacement scale is animated by GSAP */}
+                {/* Expand the silhouette outward to create a ring thickness */}
+                <feMorphology in="SourceAlpha" operator="dilate" radius="5" result="dilated" />
+                {/* Warp the dilated shape with the noise */}
                 <feDisplacementMap
                   ref={displaceRef}
-                  in="SourceGraphic"
+                  in="dilated"
                   in2="noise"
                   scale="0"
                   xChannelSelector="R"
                   yChannelSelector="G"
+                  result="displaced"
                 />
+                {/* Subtract the original silhouette — only the wavy ring remains */}
+                <feComposite in="displaced" in2="SourceAlpha" operator="out" result="ring" />
+                {/* Fill the ring with the accent colour */}
+                <feFlood
+                  ref={floodRef}
+                  floodColor={BUBBLE_COLORS[0]}
+                  floodOpacity="0.92"
+                  result="color"
+                />
+                <feComposite in="color" in2="ring" operator="in" />
               </filter>
             </defs>
             {/*
-              Ellipse positioned over where the portrait figure appears.
-              objectFit:contain + objectPosition:bottom-right means the person
-              occupies roughly the right ~60% of the container, full height.
-              cx/cy/rx/ry are % of SVG viewport → responsive.
+              SVG <image> loads the transparent PNG — preserveAspectRatio="xMaxYMax meet"
+              mirrors objectFit:contain + objectPosition:bottom-right exactly.
+              The filter only outputs a coloured ring; original pixels are never composited.
             */}
-            <ellipse
-              ref={outlineEllipseRef}
-              cx="72%"
-              cy="50%"
-              rx="26%"
-              ry="44%"
-              fill="none"
-              stroke={BUBBLE_COLORS[0]}
-              strokeWidth="1.5"
-              strokeOpacity="0.85"
+            <image
+              href="/saurabh-transparent.png"
+              x="0" y="0"
+              width="100%" height="100%"
+              preserveAspectRatio="xMaxYMax meet"
               filter="url(#portrait-morph)"
             />
           </svg>
