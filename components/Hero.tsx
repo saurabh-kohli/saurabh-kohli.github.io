@@ -588,7 +588,7 @@ export function Hero() {
             priority
           />
 
-          {/* ── Wavy morphing outline — traces the actual person silhouette ── */}
+          {/* ── Wavy morphing outline — smooth curvy line around the silhouette ── */}
           <svg
             ref={photoOutlineSvgRef}
             aria-hidden
@@ -605,12 +605,15 @@ export function Hero() {
           >
             <defs>
               {/*
-                Silhouette-tracing outline filter:
-                1. feTurbulence  — generates noise for the wavy displacement
-                2. feMorphology  — dilates the person's alpha mask outward
-                3. feDisplacementMap — distorts the dilated shape with noise (scale=0 at rest, animated on hover)
-                4. feComposite(out) — subtracts the original silhouette → leaves only the ring
-                5. feFlood + feComposite(in) — fills the ring with a solid accent colour
+                Smooth-contour outline filter:
+                1. feTurbulence         — fractal noise for wavy displacement
+                2. feMorphology(dilate) — heavily expands the silhouette, merging
+                                          fine details (hair, fingers) into a single
+                                          smooth rounded blob ~22px outside the body
+                3. feDisplacementMap    — warps the blob with noise (scale 0→28 on hover)
+                4. feMorphology(erode)  — erodes back inward, leaving a thin ~3px ring
+                5. feComposite(out)     — strips the filled interior, ring only remains
+                6. feFlood + feComposite(in) — fills the ring with the accent colour
               */}
               <filter id="portrait-morph" x="-20%" y="-15%" width="140%" height="130%">
                 <feTurbulence
@@ -621,20 +624,31 @@ export function Hero() {
                   seed="7"
                   result="noise"
                 />
-                {/* Expand the silhouette outward to create a ring thickness */}
-                <feMorphology in="SourceAlpha" operator="dilate" radius="5" result="dilated" />
-                {/* Warp the dilated shape with the noise */}
+                {/* Large dilation rounds off concavities → smooth curvy hull */}
+                <feMorphology
+                  in="SourceAlpha"
+                  operator="dilate"
+                  radius="22"
+                  result="bigBlob"
+                />
+                {/* Displace the smooth blob with noise → wavy outline shape */}
                 <feDisplacementMap
                   ref={displaceRef}
-                  in="dilated"
+                  in="bigBlob"
                   in2="noise"
                   scale="0"
                   xChannelSelector="R"
                   yChannelSelector="G"
-                  result="displaced"
+                  result="warpedBlob"
                 />
-                {/* Subtract the original silhouette — only the wavy ring remains */}
-                <feComposite in="displaced" in2="SourceAlpha" operator="out" result="ring" />
+                {/* Erode inward to leave only a ~3px ring at the outer edge */}
+                <feMorphology
+                  in="warpedBlob"
+                  operator="erode"
+                  radius="19"
+                  result="innerBlob"
+                />
+                <feComposite in="warpedBlob" in2="innerBlob" operator="out" result="ring" />
                 {/* Fill the ring with the accent colour */}
                 <feFlood
                   ref={floodRef}
@@ -645,11 +659,7 @@ export function Hero() {
                 <feComposite in="color" in2="ring" operator="in" />
               </filter>
             </defs>
-            {/*
-              SVG <image> loads the transparent PNG — preserveAspectRatio="xMaxYMax meet"
-              mirrors objectFit:contain + objectPosition:bottom-right exactly.
-              The filter only outputs a coloured ring; original pixels are never composited.
-            */}
+            {/* SVG <image> — preserveAspectRatio mirrors objectFit:contain + bottom-right */}
             <image
               href="/saurabh-transparent.png"
               x="0" y="0"
