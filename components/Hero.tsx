@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import { asset } from "@/lib/asset";
+import { PortraitCursor } from "./PortraitCursor";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -100,10 +101,8 @@ function fireConfetti() {
 }
 
 export function Hero() {
-  const sectionRef           = useRef<HTMLElement>(null);
-  const photoColRef          = useRef<HTMLDivElement>(null);
-  const photoCursorBubbleRef = useRef<HTMLDivElement>(null);         // Figma-style cursor
-  const [msgIdx, setMsgIdx] = useState(0);
+  const sectionRef  = useRef<HTMLElement>(null);
+  const photoColRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // SCSS morph animation bypasses GSAP word cycle math cleanly!
@@ -202,132 +201,6 @@ export function Hero() {
       window.removeEventListener("mousemove", parallax);
     };
   }, []); // Only run once on mount
-
-  // ── Photo hover cursor — desktop (>1024px) only ───────────────────────────
-  useEffect(() => {
-    if (typeof window === "undefined" || window.innerWidth <= 1024) return;
-    const cursor     = photoCursorBubbleRef.current;
-    if (!cursor) return;
-
-    // ── Offscreen canvas for per-pixel transparency hit-testing ──────────
-    // Loads the transparent PNG (same subject as saurabh.svg) for reliable
-    // canvas access. getImageData(x,y).data[3] tells us the alpha at that pixel
-    // so we only trigger cursor effects over the actual visible person.
-    const offscreen = document.createElement("canvas");
-    const offCtx    = offscreen.getContext("2d", { willReadFrequently: true });
-    let imgLoaded = false;
-    let natW = 1, natH = 1;
-
-    const hitImg = new window.Image();
-    hitImg.onload = () => {
-      natW = hitImg.naturalWidth;
-      natH = hitImg.naturalHeight;
-      offscreen.width  = natW;
-      offscreen.height = natH;
-      offCtx?.drawImage(hitImg, 0, 0);
-      imgLoaded = true;
-    };
-    hitImg.src = "/saurabh-transparent.png";
-
-    // ── Helpers ──────────────────────────────────────────────────────────
-
-    // Returns screen-space bounding rect of the image as rendered by
-    // objectFit:contain + objectPosition:bottom-right inside its container.
-    const getRenderedRect = (c: DOMRect) => {
-      const scale = Math.min(c.width / natW, c.height / natH); // "contain" scale
-      const rW = natW * scale;
-      const rH = natH * scale;
-      return {                                    // right- and bottom-aligned
-        left:   c.left + c.width  - rW,
-        top:    c.top  + c.height - rH,
-        right:  c.left + c.width,
-        bottom: c.top  + c.height,
-        width:  rW,
-        height: rH,
-      };
-    };
-
-    // Returns true only if (cx,cy) is over a non-transparent pixel of the portrait.
-    const isOverPerson = (
-      cx: number, cy: number,
-      r: ReturnType<typeof getRenderedRect>,
-    ): boolean => {
-      if (!imgLoaded || !offCtx) return false;
-      if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return false;
-      const pX = Math.floor((cx - r.left) / r.width  * natW);
-      const pY = Math.floor((cy - r.top)  / r.height * natH);
-      if (pX < 0 || pX >= natW || pY < 0 || pY >= natH) return false;
-      try { return offCtx.getImageData(pX, pY, 1, 1).data[3] > 25; }
-      catch { return false; }
-    };
-
-    // ── State ────────────────────────────────────────────────────────────
-    let hoverActive = false;
-    let hoverStart: number | null = null;
-    let msgTimer: ReturnType<typeof setInterval> | null = null;
-    let curIdx = 0;
-
-    // Park off-screen; CSS class handles initial opacity:0
-    gsap.set(cursor, { x: -400, y: -400, scale: 0.9 });
-
-    // Figma cursor tracks mouse with near-instant lag
-    const cxTo = gsap.quickTo(cursor, "x", { duration: 0.07, ease: "power1.out" });
-    const cyTo = gsap.quickTo(cursor, "y", { duration: 0.07, ease: "power1.out" });
-
-    // ── Handlers ─────────────────────────────────────────────────────────
-    const handleMove = (e: MouseEvent) => {
-      const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
-      if (!photoEl) return;
-      const rect     = photoEl.getBoundingClientRect();
-      const rendered = getRenderedRect(rect);
-      // Pixel-accurate: only true when cursor is over a non-transparent pixel
-      const isOver   = isOverPerson(e.clientX, e.clientY, rendered);
-
-      // Figma cursor tip tracks mouse exactly
-      cxTo(e.clientX);
-      cyTo(e.clientY);
-
-      if (isOver && !hoverActive) {
-        // ── ENTER ────────────────────────────────────────────────────
-        hoverActive = true;
-        hoverStart  = Date.now();
-
-        gsap.set(cursor, { scale: 0.85, opacity: 0 });
-        gsap.to(cursor, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(1.6)" });
-
-        msgTimer = setInterval(() => {
-          const elapsed = hoverStart ? Date.now() - hoverStart : 0;
-          let newIdx = 0;
-          for (let i = MSG_THRESHOLDS.length - 1; i >= 0; i--) {
-            if (elapsed >= MSG_THRESHOLDS[i]) { newIdx = i; break; }
-          }
-          newIdx = Math.min(newIdx, CURSOR_MESSAGES.length - 1);
-          if (newIdx !== curIdx) {
-            curIdx = newIdx;
-            setMsgIdx(newIdx);
-            if (newIdx === CURSOR_MESSAGES.length - 1) fireConfetti();
-          }
-        }, 200);
-
-      } else if (!isOver && hoverActive) {
-        // ── EXIT ─────────────────────────────────────────────────────
-        hoverActive = false;
-        hoverStart  = null;
-        if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
-
-        curIdx = 0;
-        setMsgIdx(0);
-
-        gsap.to(cursor, { opacity: 0, scale: 0.85, duration: 0.22 });
-      }
-    };
-
-    window.addEventListener("mousemove", handleMove);
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      if (msgTimer) clearInterval(msgTimer);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // mounted state removed — SVG filter is now always server-rendered to avoid hydration mismatch
 
@@ -587,103 +460,28 @@ export function Hero() {
         </defs>
       </svg>
 
-      {/* ── Figma-style cursor — arrow + coloured badge, follows mouse ── */}
-      <div
-        ref={photoCursorBubbleRef}
-        data-photo-cursor
-        className="photo-cursor-bubble figma-cursor"
-        style={{
-          position:      "fixed",
-          left:          0,
-          top:           0,
-          pointerEvents: "none",
-          zIndex:        9999,
-        }}
-      >
-        {/* Cursor arrow (tip aligns with mouse position) */}
-        <svg
-          width="18" height="22"
-          viewBox="0 0 18 22"
-          style={{ display: "block", flexShrink: 0 }}
-          aria-hidden
-        >
-          <path
-            d="M 1 1 L 1 19 L 5.5 14 L 9 21 L 11.5 20 L 8 13 L 14 13 Z"
-            fill={BUBBLE_COLORS[msgIdx]}
-          />
-          <path
-            d="M 1 1 L 1 19 L 5.5 14 L 9 21 L 11.5 20 L 8 13 L 14 13 Z"
-            fill="none"
-            stroke="rgba(0,0,0,0.28)"
-            strokeWidth="0.8"
-            strokeLinejoin="round"
-          />
-        </svg>
-
-        {/* Badge — coloured pill below the arrow shaft */}
-        <div
-          className="figma-badge"
-          style={{ background: BUBBLE_COLORS[msgIdx] }}
-        >
-          <span key={`lbl-${msgIdx}`} className="figma-badge-text">
-            {CURSOR_MESSAGES[msgIdx]}
-          </span>
-        </div>
-      </div>
+      {/* ── Portrait cursor + animated silhouette contour ── */}
+      <PortraitCursor
+        imageSrc="/saurabh-transparent.png"
+        containerRef={photoColRef}
+        messages={CURSOR_MESSAGES}
+        colors={BUBBLE_COLORS}
+        thresholds={MSG_THRESHOLDS}
+        onLastMessage={fireConfetti}
+      />
 
       <style>{`
-        /* Initial hidden state — CSS class prevents React re-renders from stomping
-           GSAP's live opacity value on the Figma cursor. */
-        .photo-cursor-bubble { opacity: 0; }
-
-        /* ── Figma-style cursor ───────────────────────────────────────────────── */
-        .figma-cursor {
-          display: block;
-          position: fixed;
-        }
-        /* Badge pill — colour set via inline style, updated with BUBBLE_COLORS */
-        .figma-badge {
-          position: absolute;
-          top: 17px;
-          left: 15px;
-          padding: 4px 10px;
-          border-radius: 5px;
-          white-space: nowrap;
-          line-height: 1;
-        }
-        /* Text inside the badge */
-        .figma-badge-text {
-          display: inline-block;
-          font-size: 0.68rem;
-          font-weight: 700;
-          color: #fff;
-          letter-spacing: 0.045em;
-          font-family: var(--font-body);
-          white-space: nowrap;
-          animation: badgeIn 0.22s cubic-bezier(0.22,1,0.36,1) both;
-        }
-        @keyframes badgeIn {
-          from { opacity: 0; transform: translateY(4px) scale(0.92); }
-          to   { opacity: 1; transform: translateY(0)   scale(1); }
-        }
-
         @media (min-width: 641px) and (max-width: 1023px) {
           #hero { grid-template-columns: 1fr !important; padding-top: 96px !important; }
           .hero-photo-col { display: none !important; }
-          [data-photo-cursor] { display: none !important; }
         }
         @media (max-width: 640px) {
           .hero-photo-col {
             display: block !important; opacity: 1;
             width: 100% !important; pointer-events: none;
           }
-          [data-photo-cursor] { display: none !important; }
-        }
-        @media (max-width: 1024px) {
-          [data-photo-cursor] { display: none !important; }
         }
       `}</style>
     </section>
   );
 }
-
