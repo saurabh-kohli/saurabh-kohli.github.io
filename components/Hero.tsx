@@ -605,15 +605,13 @@ export function Hero() {
           >
             <defs>
               {/*
-                Smooth-contour outline filter:
+                Smooth 1px contour line filter:
                 1. feTurbulence         — fractal noise for wavy displacement
-                2. feMorphology(dilate) — heavily expands the silhouette, merging
-                                          fine details (hair, fingers) into a single
-                                          smooth rounded blob ~22px outside the body
-                3. feDisplacementMap    — warps the blob with noise (scale 0→28 on hover)
-                4. feMorphology(erode)  — erodes back inward, leaving a thin ~3px ring
-                5. feComposite(out)     — strips the filled interior, ring only remains
-                6. feFlood + feComposite(in) — fills the ring with the accent colour
+                2. feMorphology(dilate) — expands silhouette into a smooth rounded blob
+                3. feGaussianBlur       — softens the blob edge to a gradient
+                4. feColorMatrix        — thresholds the gradient → crisp 1px anti-aliased line
+                5. feDisplacementMap    — warps the line with noise (scale 0→28 on hover)
+                6. feFlood + feComposite(in) — fills the line with the accent colour
               */}
               <filter id="portrait-morph" x="-20%" y="-15%" width="140%" height="130%">
                 <feTurbulence
@@ -624,39 +622,47 @@ export function Hero() {
                   seed="7"
                   result="noise"
                 />
-                {/* Large dilation rounds off concavities → smooth curvy hull */}
+                {/* Expand the silhouette to create a smooth rounded hull */}
                 <feMorphology
                   in="SourceAlpha"
                   operator="dilate"
-                  radius="22"
+                  radius="18"
                   result="bigBlob"
                 />
-                {/* Displace the smooth blob with noise → wavy outline shape */}
+                {/* Blur the edge of the blob — turns hard binary edge into a gradient */}
+                <feGaussianBlur in="bigBlob" stdDeviation="1.2" result="blurredBlob" />
+                {/*
+                  Threshold the gradient: alpha_out = alpha_in * 80 - 38
+                  The mid-point (alpha=0.5) becomes the 1px stroke line.
+                  High multiplier + negative shift = extremely sharp, thin line.
+                */}
+                <feColorMatrix
+                  in="blurredBlob"
+                  type="matrix"
+                  values="0 0 0 0 0
+                          0 0 0 0 0
+                          0 0 0 0 0
+                          0 0 0 80 -38"
+                  result="crispLine"
+                />
+                {/* Displace the crisp line with turbulence noise → wavy on hover */}
                 <feDisplacementMap
                   ref={displaceRef}
-                  in="bigBlob"
+                  in="crispLine"
                   in2="noise"
                   scale="0"
                   xChannelSelector="R"
                   yChannelSelector="G"
-                  result="warpedBlob"
+                  result="warpedLine"
                 />
-                {/* Erode inward to leave only a ~1px ring at the outer edge */}
-                <feMorphology
-                  in="warpedBlob"
-                  operator="erode"
-                  radius="21"
-                  result="innerBlob"
-                />
-                <feComposite in="warpedBlob" in2="innerBlob" operator="out" result="ring" />
-                {/* Fill the ring with the accent colour */}
+                {/* Fill the line with the accent colour */}
                 <feFlood
                   ref={floodRef}
                   floodColor={BUBBLE_COLORS[0]}
                   floodOpacity="0.92"
                   result="color"
                 />
-                <feComposite in="color" in2="ring" operator="in" />
+                <feComposite in="color" in2="warpedLine" operator="in" />
               </filter>
             </defs>
             {/* SVG <image> — preserveAspectRatio mirrors objectFit:contain + bottom-right */}
