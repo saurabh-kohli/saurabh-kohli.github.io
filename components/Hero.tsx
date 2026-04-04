@@ -103,10 +103,6 @@ export function Hero() {
   const sectionRef           = useRef<HTMLElement>(null);
   const photoColRef          = useRef<HTMLDivElement>(null);
   const photoCursorBubbleRef = useRef<HTMLDivElement>(null);         // Figma-style cursor
-  const photoOutlineSvgRef   = useRef<SVGSVGElement>(null);          // SVG morphing outline
-  const turbRef              = useRef<SVGFETurbulenceElement>(null);  // feTurbulence node
-  const displaceRef          = useRef<SVGFEDisplacementMapElement>(null); // feDisplacementMap
-  const floodRef             = useRef<SVGFEFloodElement>(null);      // feFlood — color control
   const [msgIdx, setMsgIdx] = useState(0);
 
   useEffect(() => {
@@ -211,10 +207,6 @@ export function Hero() {
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth <= 1024) return;
     const cursor     = photoCursorBubbleRef.current;
-    const outlineSvg = photoOutlineSvgRef.current;
-    const turb       = turbRef.current;
-    const disp       = displaceRef.current;
-    const flood      = floodRef.current;
     if (!cursor) return;
 
     // ── Offscreen canvas for per-pixel transparency hit-testing ──────────
@@ -282,14 +274,6 @@ export function Hero() {
     const cxTo = gsap.quickTo(cursor, "x", { duration: 0.07, ease: "power1.out" });
     const cyTo = gsap.quickTo(cursor, "y", { duration: 0.07, ease: "power1.out" });
 
-    // Continuous turbulence loop — keeps the outline wavy while hovering
-    const waveTl = turb
-      ? gsap.timeline({ repeat: -1 })
-          .to(turb, { attr: { baseFrequency: "0.020 0.010" }, duration: 3.5, ease: "sine.inOut" })
-          .to(turb, { attr: { baseFrequency: "0.008 0.018" }, duration: 4.2, ease: "sine.inOut" })
-          .to(turb, { attr: { baseFrequency: "0.015 0.013" }, duration: 3.0, ease: "sine.inOut" })
-      : null;
-
     // ── Handlers ─────────────────────────────────────────────────────────
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
@@ -311,9 +295,6 @@ export function Hero() {
         gsap.set(cursor, { scale: 0.85, opacity: 0 });
         gsap.to(cursor, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(1.6)" });
 
-        if (outlineSvg) gsap.to(outlineSvg, { opacity: 1, duration: 0.55, ease: "power2.out" });
-        if (disp)       gsap.to(disp, { attr: { scale: 28 }, duration: 1.1, ease: "power2.out" });
-
         msgTimer = setInterval(() => {
           const elapsed = hoverStart ? Date.now() - hoverStart : 0;
           let newIdx = 0;
@@ -324,8 +305,6 @@ export function Hero() {
           if (newIdx !== curIdx) {
             curIdx = newIdx;
             setMsgIdx(newIdx);
-            // Recolour the outline ring via feFlood flood-color
-            if (flood) flood.setAttribute("flood-color", BUBBLE_COLORS[newIdx]);
             if (newIdx === CURSOR_MESSAGES.length - 1) fireConfetti();
           }
         }, 200);
@@ -338,20 +317,8 @@ export function Hero() {
 
         curIdx = 0;
         setMsgIdx(0);
-        if (flood) flood.setAttribute("flood-color", BUBBLE_COLORS[0]);
 
-        gsap.to(cursor,     { opacity: 0, scale: 0.85, duration: 0.22 });
-        if (disp)       gsap.to(disp,       { attr: { scale: 0 }, duration: 0.75, ease: "power2.inOut" });
-        if (outlineSvg) gsap.to(outlineSvg, { opacity: 0, x: 0, y: 0, duration: 0.5, delay: 0.55 });
-      }
-
-      // Magnetic pull: outline drifts toward cursor relative to image centre
-      if (isOver && outlineSvg && imgLoaded) {
-        const relX  = (e.clientX - rendered.left) / rendered.width;   // 0 – 1
-        const relY  = (e.clientY - rendered.top)  / rendered.height;  // 0 – 1
-        const pullX = (relX - 0.50) * 22;
-        const pullY = (relY - 0.50) * 14;
-        gsap.to(outlineSvg, { x: pullX, y: pullY, duration: 0.85, ease: "power2.out", overwrite: "auto" });
+        gsap.to(cursor, { opacity: 0, scale: 0.85, duration: 0.22 });
       }
     };
 
@@ -359,7 +326,6 @@ export function Hero() {
     return () => {
       window.removeEventListener("mousemove", handleMove);
       if (msgTimer) clearInterval(msgTimer);
-      if (waveTl)   waveTl.kill();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -587,93 +553,6 @@ export function Hero() {
             }}
             priority
           />
-
-          {/* ── Wavy morphing outline — smooth curvy line around the silhouette ── */}
-          <svg
-            ref={photoOutlineSvgRef}
-            aria-hidden
-            data-photo-cursor
-            className="photo-outline-svg"
-            style={{
-              position: "absolute",
-              top: 0, left: 0,
-              width: "100%", height: "100%",
-              overflow: "visible",
-              pointerEvents: "none",
-              zIndex: 3,
-            }}
-          >
-            <defs>
-              {/*
-                Smooth 1px contour line filter:
-                1. feTurbulence         — fractal noise for wavy displacement
-                2. feMorphology(dilate) — expands silhouette into a smooth rounded blob
-                3. feGaussianBlur       — softens the blob edge to a gradient
-                4. feColorMatrix        — thresholds the gradient → crisp 1px anti-aliased line
-                5. feDisplacementMap    — warps the line with noise (scale 0→28 on hover)
-                6. feFlood + feComposite(in) — fills the line with the accent colour
-              */}
-              <filter id="portrait-morph" x="-20%" y="-15%" width="140%" height="130%">
-                <feTurbulence
-                  ref={turbRef}
-                  type="fractalNoise"
-                  baseFrequency="0.012 0.008"
-                  numOctaves="4"
-                  seed="7"
-                  result="noise"
-                />
-                {/* Expand the silhouette to create a smooth rounded hull */}
-                <feMorphology
-                  in="SourceAlpha"
-                  operator="dilate"
-                  radius="18"
-                  result="bigBlob"
-                />
-                {/* Blur the edge of the blob — turns hard binary edge into a gradient */}
-                <feGaussianBlur in="bigBlob" stdDeviation="1.2" result="blurredBlob" />
-                {/*
-                  Threshold the gradient: alpha_out = alpha_in * 80 - 38
-                  The mid-point (alpha=0.5) becomes the 1px stroke line.
-                  High multiplier + negative shift = extremely sharp, thin line.
-                */}
-                <feColorMatrix
-                  in="blurredBlob"
-                  type="matrix"
-                  values="0 0 0 0 0
-                          0 0 0 0 0
-                          0 0 0 0 0
-                          0 0 0 80 -38"
-                  result="crispLine"
-                />
-                {/* Displace the crisp line with turbulence noise → wavy on hover */}
-                <feDisplacementMap
-                  ref={displaceRef}
-                  in="crispLine"
-                  in2="noise"
-                  scale="0"
-                  xChannelSelector="R"
-                  yChannelSelector="G"
-                  result="warpedLine"
-                />
-                {/* Fill the line with the accent colour */}
-                <feFlood
-                  ref={floodRef}
-                  floodColor={BUBBLE_COLORS[0]}
-                  floodOpacity="0.92"
-                  result="color"
-                />
-                <feComposite in="color" in2="warpedLine" operator="in" />
-              </filter>
-            </defs>
-            {/* SVG <image> — preserveAspectRatio mirrors objectFit:contain + bottom-right */}
-            <image
-              href="/saurabh-transparent.png"
-              x="0" y="0"
-              width="100%" height="100%"
-              preserveAspectRatio="xMaxYMax meet"
-              filter="url(#portrait-morph)"
-            />
-          </svg>
         </div>
       </div>
 
@@ -754,9 +633,8 @@ export function Hero() {
 
       <style>{`
         /* Initial hidden state — CSS class prevents React re-renders from stomping
-           GSAP's live opacity value on the Figma cursor and SVG outline. */
+           GSAP's live opacity value on the Figma cursor. */
         .photo-cursor-bubble { opacity: 0; }
-        .photo-outline-svg   { opacity: 0; }
 
         /* ── Figma-style cursor ───────────────────────────────────────────────── */
         .figma-cursor {
