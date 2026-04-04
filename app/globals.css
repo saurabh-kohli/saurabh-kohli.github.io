@@ -90,9 +90,11 @@ html {
   -moz-osx-font-smoothing: grayscale;
   cursor: none;
   scroll-behavior: auto;
-  /* No overflow-x set on html — body handles the clip below.
-     Setting any overflow on html triggers implicit overflow-y behaviour
-     that can interfere with Lenis / GSAP ScrollTrigger on desktop. */
+  /* overflow-x: clip on both html + body is required to reliably prevent
+     horizontal scroll on iOS Safari during fast momentum scrolling.
+     clip (unlike hidden) does NOT create a scroll container, so Lenis /
+     GSAP ScrollTrigger vertical scrolling is unaffected. */
+  overflow-x: clip;
 }
 
 /* Restore pointer hand on all interactive elements so the native cursor

@@ -284,7 +284,13 @@ export function Cases() {
           const headingH = headingRef.current.offsetHeight;
           const visibleStripTop = (1 - revealT) * vh;
           const pushT = Math.max(0, Math.min(1, (headingH - visibleStripTop) / headingH));
-          gsap.set(headingRef.current, { y: -pushT * headingH });
+          // Fade starts the moment the strip's top edge touches the heading's bottom edge.
+          // fadeLead = revealT value at which that contact happens.
+          const fadeLead = Math.max(0, 1 - headingH / vh);
+          const fadeT    = fadeLead < 1
+            ? Math.max(0, Math.min(1, (revealT - fadeLead) / (1 - fadeLead)))
+            : 0;
+          gsap.set(headingRef.current, { y: -pushT * headingH, opacity: 1 - fadeT });
         }
 
         /* Trigger KPI counters when card snaps to front */
@@ -660,6 +666,12 @@ export function Cases() {
              override so inline opacity: 0.4 applies */
           .rl-side {
             font-size: 3rem !important;
+          }
+          /* On mobile the inline bottom: -1.5rem would bleed below the card's
+             overflow:hidden boundary — clamp it inside the card */
+          .rl-side-wrap {
+            bottom: 0.5rem !important;
+            left: 1.2rem !important;
           }
         }
       `}</style>

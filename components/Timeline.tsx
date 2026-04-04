@@ -92,7 +92,7 @@ export function Timeline() {
       // Use a narrow left-edge cx (20px) with no sway so the path becomes a
       // straight vertical indicator line on the left — rebuilt live via ResizeObserver.
       const isMobile = W < 720;
-      const cx   = isMobile ? W - 20 : W * 0.50;
+      const cx   = isMobile ? 20 : W * 0.50;
       const SWAY = isMobile ? 0  : W * 0.07;
 
       // Use getBoundingClientRect() relative to the container's own rect.
@@ -394,29 +394,33 @@ export function Timeline() {
           }
           .tl-entry { width: 100% !important; margin-left: 0 !important; }
         }
-        /* Mobile: right-aligned entries; path moves to extreme right (cx = W - 20).
-           All bullets use row-reverse so the dash sits on the right.            */
+        /* Mobile: left-aligned entries; path moves to extreme left (cx = 20).
+           All bullets use standard row so the dash sits on the left.           */
         @media (max-width: 768px) {
           .tl-grid { gap: var(--space-lg) !important; }
           .tl-entry {
             width: 100% !important;
             margin-left: 0 !important;
-            text-align: right !important;
-            padding-right: 2rem !important;
-            padding-left: 0 !important;
+            text-align: left !important;
+            padding-left: 2.5rem !important;
+            padding-right: 0.5rem !important;
           }
-          /* All bullet rows: dash on the right, text on the left */
+          /* All bullet rows: dash on the left, text on the right — standard */
           .tl-proj-item,
-          .tl-proj-item-rev { flex-direction: row-reverse !important; }
+          .tl-proj-item-rev { flex-direction: row !important; }
           .tl-proj-text,
-          .tl-proj-text-rev { justify-content: flex-end !important; }
+          .tl-proj-text-rev { justify-content: flex-start !important; }
+          /* Compact sticky head — hide subtitle to save vertical space */
+          .tl-sticky-head h2 { font-size: 1.5rem !important; margin-bottom: 0.5rem !important; }
+          .tl-sticky-head p  { display: none !important; }
+          .tl-sticky-head    { padding-bottom: 0.75rem !important; }
         }
         @media (max-width: 640px) {
           .tl-entry {
             padding-top: 1rem !important;
             padding-bottom: 1rem !important;
-            padding-right: 2rem !important;
-            padding-left: 0 !important;
+            padding-left: 2.5rem !important;
+            padding-right: 0.5rem !important;
           }
           .tl-entry h3 { font-size: 1rem !important; }
         }
