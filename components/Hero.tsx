@@ -102,8 +102,11 @@ function fireConfetti() {
 export function Hero() {
   const sectionRef           = useRef<HTMLElement>(null);
   const photoColRef          = useRef<HTMLDivElement>(null);
-  const photoCursorRingRef   = useRef<HTMLDivElement>(null);  // morphing cursor blob
-  const photoCursorBubbleRef = useRef<HTMLDivElement>(null);  // callout label
+  const photoCursorBubbleRef = useRef<HTMLDivElement>(null);         // Figma-style cursor
+  const photoOutlineSvgRef   = useRef<SVGSVGElement>(null);          // SVG morphing outline
+  const turbRef              = useRef<SVGFETurbulenceElement>(null);  // feTurbulence node
+  const displaceRef          = useRef<SVGFEDisplacementMapElement>(null); // feDisplacementMap
+  const outlineEllipseRef    = useRef<SVGEllipseElement>(null);      // outline ellipse
   const [msgIdx, setMsgIdx] = useState(0);
 
   useEffect(() => {
@@ -207,90 +210,62 @@ export function Hero() {
   // ── Photo hover cursor — desktop (>1024px) only ───────────────────────────
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth <= 1024) return;
-    const ring   = photoCursorRingRef.current;
-    const bubble = photoCursorBubbleRef.current;
-    if (!ring || !bubble) return;
+    const cursor     = photoCursorBubbleRef.current;
+    const outlineSvg = photoOutlineSvgRef.current;
+    const turb       = turbRef.current;
+    const disp       = displaceRef.current;
+    const ellipse    = outlineEllipseRef.current;
+    if (!cursor) return;
 
-    let hoverActive  = false;
+    let hoverActive = false;
     let hoverStart: number | null = null;
     let msgTimer: ReturnType<typeof setInterval> | null = null;
-    let curIdx       = 0;
-    let ringMorphTl: gsap.core.Timeline | null = null;
-    // ringHalf tracks half the current ring width so centering stays correct
-    // without using xPercent (which causes jumps during width animation)
-    let ringHalf = 40; // half of 80px default
+    let curIdx = 0;
 
-    // Park off-screen; CSS class handles initial opacity:0 so React re-renders
-    // can never stomp GSAP's live opacity value.
-    gsap.set(ring,   { x: -400, y: -400 });
-    gsap.set(bubble, { x: -400, y: -400, scale: 0.9 });
+    // Park off-screen; CSS class handles initial opacity:0
+    gsap.set(cursor, { x: -400, y: -400, scale: 0.9 });
 
-    // Ring follows cursor — tighter lag so it visually hugs the cursor
-    const rxTo = gsap.quickTo(ring, "x", { duration: 0.35, ease: "power3.out" });
-    const ryTo = gsap.quickTo(ring, "y", { duration: 0.4,  ease: "power3.out" });
-    // Callout follows cursor very tightly
-    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.18, ease: "power2.out" });
-    const byTo = gsap.quickTo(bubble, "y", { duration: 0.20, ease: "power2.out" });
+    // Figma cursor tracks mouse with very tight lag (near-instant)
+    const cxTo = gsap.quickTo(cursor, "x", { duration: 0.07, ease: "power1.out" });
+    const cyTo = gsap.quickTo(cursor, "y", { duration: 0.07, ease: "power1.out" });
+
+    // Continuous ambient turbulence animation — keeps the outline alive
+    const waveTl = turb
+      ? gsap.timeline({ repeat: -1 })
+          .to(turb, { attr: { baseFrequency: "0.020 0.010" }, duration: 3.5, ease: "sine.inOut" })
+          .to(turb, { attr: { baseFrequency: "0.008 0.018" }, duration: 4.2, ease: "sine.inOut" })
+          .to(turb, { attr: { baseFrequency: "0.015 0.013" }, duration: 3.0, ease: "sine.inOut" })
+      : null;
 
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
       if (!photoEl) return;
-      const rect   = photoEl.getBoundingClientRect();
-      const inX    = e.clientX >= rect.left + rect.width * 0.15 && e.clientX <= rect.right;
-      const inY    = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
+      const rect  = photoEl.getBoundingClientRect();
+      const inX   = e.clientX >= rect.left + rect.width * 0.15 && e.clientX <= rect.right;
+      const inY   = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
       const isOver = inX && inY;
 
-      // Ring always tracks the cursor, offset by ringHalf so it centres on the cursor
-      rxTo(e.clientX - ringHalf);
-      ryTo(e.clientY - ringHalf);
-
-      // Callout tracks cursor whenever visible
-      if (hoverActive) {
-        bxTo(e.clientX + 22);
-        byTo(e.clientY - 54);
-      }
+      // Figma cursor tip aligns exactly with the mouse pointer
+      cxTo(e.clientX);
+      cyTo(e.clientY);
 
       if (isOver && !hoverActive) {
-        // ── ENTER: ring morphs into organic blob, callout appears ───────
+        // ── ENTER ──────────────────────────────────────────────────────
         hoverActive = true;
         hoverStart  = Date.now();
 
-        // Switch to large blob half-size immediately so centering is right
-        ringHalf = 95; // half of 190px
-        rxTo(e.clientX - ringHalf);
-        ryTo(e.clientY - ringHalf);
+        // Appear: Figma cursor slides in
+        gsap.set(cursor, { scale: 0.85, opacity: 0 });
+        gsap.to(cursor, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(1.6)" });
 
-        // Expand ring — do NOT use overwrite:true so quickTo x/y keep running
-        if (ringMorphTl) { ringMorphTl.kill(); ringMorphTl = null; }
-        gsap.to(ring, {
-          width: 190, height: 190,
-          borderRadius: "60% 40% 35% 65% / 55% 45% 60% 40%",
-          borderColor: "rgba(255,255,255,0.42)",
-          borderWidth: "1.5px",
-          opacity: 0.5,
-          duration: 0.9,
-          ease: "power2.out",
-        });
-        // Blob morph starts AFTER the expand finishes (delay = expand duration)
-        // so they don't fight over borderRadius
-        ringMorphTl = gsap.timeline({ repeat: -1, delay: 0.9 })
-          .to(ring, { borderRadius: "40% 60% 55% 45% / 62% 38% 56% 44%", duration: 3.8, ease: "sine.inOut" })
-          .to(ring, { borderRadius: "55% 45% 62% 38% / 42% 58% 47% 53%", duration: 3.2, ease: "sine.inOut" })
-          .to(ring, { borderRadius: "68% 32% 42% 58% / 55% 45% 62% 38%", duration: 4.1, ease: "sine.inOut" })
-          .to(ring, { borderRadius: "44% 56% 58% 42% / 38% 62% 44% 56%", duration: 3.6, ease: "sine.inOut" })
-          .to(ring, { borderRadius: "60% 40% 35% 65% / 55% 45% 60% 40%", duration: 3.5, ease: "sine.inOut" });
+        // SVG outline: fade in + crank up displacement for organic warp
+        if (outlineSvg) gsap.to(outlineSvg, { opacity: 1, duration: 0.55, ease: "power2.out" });
+        if (disp)       gsap.to(disp, { attr: { scale: 24 }, duration: 1.1, ease: "power2.out" });
 
-        // Callout: position it, then fade/scale in WITHOUT overwrite so bxTo/byTo
-        // quickTo tweens are never killed by the opacity animation
-        gsap.set(bubble, { x: e.clientX + 22, y: e.clientY - 54, scale: 0.9, opacity: 0 });
-        gsap.to(bubble, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.5)" });
-        bxTo(e.clientX + 22);
-        byTo(e.clientY - 54);
-
-        // Message timer — resets completely on every new hover session
+        // Message timer — fully resets every new hover session
         msgTimer = setInterval(() => {
           const elapsed = hoverStart ? Date.now() - hoverStart : 0;
-          let newIdx  = 0;
+          let newIdx = 0;
           for (let i = MSG_THRESHOLDS.length - 1; i >= 0; i--) {
             if (elapsed >= MSG_THRESHOLDS[i]) { newIdx = i; break; }
           }
@@ -298,52 +273,47 @@ export function Hero() {
           if (newIdx !== curIdx) {
             curIdx = newIdx;
             setMsgIdx(newIdx);
+            // Sync outline stroke colour with the badge colour
+            if (ellipse) ellipse.style.stroke = BUBBLE_COLORS[newIdx];
             if (newIdx === CURSOR_MESSAGES.length - 1) fireConfetti();
           }
         }, 200);
 
       } else if (!isOver && hoverActive) {
-        // ── EXIT: ring contracts back to small circle, everything resets ──
+        // ── EXIT ───────────────────────────────────────────────────────
         hoverActive = false;
         hoverStart  = null;
-        if (msgTimer)    { clearInterval(msgTimer); msgTimer = null; }
-        if (ringMorphTl) { ringMorphTl.kill(); ringMorphTl = null; }
+        if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
 
-        // Reset message index so next hover always starts from message 0
+        // Reset message so next hover restarts from the first
         curIdx = 0;
         setMsgIdx(0);
+        if (ellipse) ellipse.style.stroke = BUBBLE_COLORS[0];
 
-        // Restore half-size for small ring
-        ringHalf = 40;
-        rxTo(e.clientX - ringHalf);
-        ryTo(e.clientY - ringHalf);
+        // Hide Figma cursor
+        gsap.to(cursor, { opacity: 0, scale: 0.85, duration: 0.22 });
 
-        gsap.to(ring, {
-          width: 80, height: 80,
-          borderRadius: "50%",
-          borderColor: BUBBLE_COLORS[0],
-          borderWidth: "2px",
-          opacity: 0.65,
-          duration: 0.55,
-          ease: "power2.inOut",
-          overwrite: true,
-        });
-        gsap.to(bubble, { opacity: 0, scale: 0.9, duration: 0.2 });
+        // Wind down outline: reduce warp then fade out
+        if (disp)       gsap.to(disp, { attr: { scale: 0 }, duration: 0.75, ease: "power2.inOut" });
+        if (outlineSvg) gsap.to(outlineSvg, { opacity: 0, x: 0, y: 0, duration: 0.5, delay: 0.55 });
       }
 
-      // Ring visibility: show only near the photo column
-      if (!hoverActive) {
-        const nearX = e.clientX >= rect.left - 150;
-        const nearY = e.clientY >= rect.top && e.clientY <= rect.bottom;
-        gsap.to(ring, { opacity: nearX && nearY ? 0.6 : 0, duration: 0.35 });
+      // Magnetic pull: outline drifts toward cursor while hovering
+      if (isOver && outlineSvg) {
+        const relX  = (e.clientX - rect.left) / rect.width;   // 0 – 1
+        const relY  = (e.clientY - rect.top)  / rect.height;  // 0 – 1
+        // Person is at ~70% from the left edge of the photo column
+        const pullX = (relX - 0.70) * 20;
+        const pullY = (relY - 0.50) * 14;
+        gsap.to(outlineSvg, { x: pullX, y: pullY, duration: 0.85, ease: "power2.out", overwrite: "auto" });
       }
     };
 
     window.addEventListener("mousemove", handleMove);
     return () => {
       window.removeEventListener("mousemove", handleMove);
-      if (msgTimer)    clearInterval(msgTimer);
-      if (ringMorphTl) ringMorphTl.kill();
+      if (msgTimer) clearInterval(msgTimer);
+      if (waveTl)   waveTl.kill();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -562,7 +532,7 @@ export function Hero() {
           height: "100%",
         }}>
           <Image
-            src={asset("/saurabh-transparent.png")}
+            src={asset("/saurabh.svg")}
             alt="Saurabh Kohli"
             fill
             style={{
@@ -571,6 +541,63 @@ export function Hero() {
             }}
             priority
           />
+
+          {/* ── Wavy magnetic SVG outline around portrait ── */}
+          <svg
+            ref={photoOutlineSvgRef}
+            aria-hidden
+            data-photo-cursor
+            className="photo-outline-svg"
+            style={{
+              position: "absolute",
+              top: 0, left: 0,
+              width: "100%", height: "100%",
+              overflow: "visible",
+              pointerEvents: "none",
+              zIndex: 3,
+            }}
+          >
+            <defs>
+              <filter id="portrait-morph" x="-30%" y="-20%" width="160%" height="140%">
+                {/* Continuous noise drives the displacement */}
+                <feTurbulence
+                  ref={turbRef}
+                  type="fractalNoise"
+                  baseFrequency="0.012 0.008"
+                  numOctaves="4"
+                  seed="7"
+                  result="noise"
+                />
+                {/* Displacement scale is animated by GSAP */}
+                <feDisplacementMap
+                  ref={displaceRef}
+                  in="SourceGraphic"
+                  in2="noise"
+                  scale="0"
+                  xChannelSelector="R"
+                  yChannelSelector="G"
+                />
+              </filter>
+            </defs>
+            {/*
+              Ellipse positioned over where the portrait figure appears.
+              objectFit:contain + objectPosition:bottom-right means the person
+              occupies roughly the right ~60% of the container, full height.
+              cx/cy/rx/ry are % of SVG viewport → responsive.
+            */}
+            <ellipse
+              ref={outlineEllipseRef}
+              cx="72%"
+              cy="50%"
+              rx="26%"
+              ry="44%"
+              fill="none"
+              stroke={BUBBLE_COLORS[0]}
+              strokeWidth="1.5"
+              strokeOpacity="0.85"
+              filter="url(#portrait-morph)"
+            />
+          </svg>
         </div>
       </div>
 
@@ -605,31 +632,11 @@ export function Hero() {
         </defs>
       </svg>
 
-      {/* ── Cursor blob ring — follows mouse, morphs into organic blob on hover ── */}
-      <div
-        ref={photoCursorRingRef}
-        data-photo-cursor
-        className="photo-cursor-ring"
-        style={{
-          position:      "fixed",
-          left:          0,
-          top:           0,
-          width:         "80px",
-          height:        "80px",
-          borderRadius:  "50%",
-          border:        `2px solid ${BUBBLE_COLORS[0]}`,
-          boxSizing:     "border-box",
-          pointerEvents: "none",
-          zIndex:        9998,
-          willChange:    "transform, width, height, border-radius",
-        }}
-      />
-
-      {/* ── Callout label — follows cursor, simple dark pill with tail ── */}
+      {/* ── Figma-style cursor — arrow + coloured badge, follows mouse ── */}
       <div
         ref={photoCursorBubbleRef}
         data-photo-cursor
-        className="photo-cursor-bubble"
+        className="photo-cursor-bubble figma-cursor"
         style={{
           position:      "fixed",
           left:          0,
@@ -638,57 +645,74 @@ export function Hero() {
           zIndex:        9999,
         }}
       >
-        <div className="callout-bubble">
-          <span key={`lbl-${msgIdx}`} className="callout-text">
+        {/* Cursor arrow (tip aligns with mouse position) */}
+        <svg
+          width="18" height="22"
+          viewBox="0 0 18 22"
+          style={{ display: "block", flexShrink: 0 }}
+          aria-hidden
+        >
+          <path
+            d="M 1 1 L 1 19 L 5.5 14 L 9 21 L 11.5 20 L 8 13 L 14 13 Z"
+            fill={BUBBLE_COLORS[msgIdx]}
+          />
+          <path
+            d="M 1 1 L 1 19 L 5.5 14 L 9 21 L 11.5 20 L 8 13 L 14 13 Z"
+            fill="none"
+            stroke="rgba(0,0,0,0.28)"
+            strokeWidth="0.8"
+            strokeLinejoin="round"
+          />
+        </svg>
+
+        {/* Badge — coloured pill below the arrow shaft */}
+        <div
+          className="figma-badge"
+          style={{ background: BUBBLE_COLORS[msgIdx] }}
+        >
+          <span key={`lbl-${msgIdx}`} className="figma-badge-text">
             {CURSOR_MESSAGES[msgIdx]}
           </span>
         </div>
       </div>
 
       <style>{`
-        /* Initial hidden state — GSAP controls live opacity via inline style,
-           so we use CSS classes (not JSX style prop) to avoid React stomping
-           GSAP's value on every re-render (e.g. when msgIdx changes). */
-        .photo-cursor-ring   { opacity: 0; }
+        /* Initial hidden state — CSS class prevents React re-renders from stomping
+           GSAP's live opacity value on the Figma cursor and SVG outline. */
         .photo-cursor-bubble { opacity: 0; }
+        .photo-outline-svg   { opacity: 0; }
 
-        /* ── Callout bubble — plain dark pill with downward tail ────────────── */
-        .callout-bubble {
-          position: relative;
-          display: inline-block;
-          padding: 8px 16px;
-          border-radius: 12px;
-          background: rgba(10, 10, 14, 0.88);
-          box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-          border: 0.5px solid rgba(255,255,255,0.1);
-          white-space: nowrap;
+        /* ── Figma-style cursor ───────────────────────────────────────────────── */
+        .figma-cursor {
+          display: block;
+          position: fixed;
         }
-        /* Tail pointing down-left toward the cursor */
-        .callout-bubble::after {
-          content: '';
+        /* Badge pill — colour set via inline style, updated with BUBBLE_COLORS */
+        .figma-badge {
           position: absolute;
-          left: 16px;
-          bottom: -9px;
-          width: 0; height: 0;
-          border-left:  9px solid transparent;
-          border-right: 9px solid transparent;
-          border-top:   10px solid rgba(10,10,14,0.88);
+          top: 17px;
+          left: 15px;
+          padding: 4px 10px;
+          border-radius: 5px;
+          white-space: nowrap;
+          line-height: 1;
         }
-        /* Text: slide-up on each message change */
-        .callout-text {
+        /* Text inside the badge */
+        .figma-badge-text {
           display: inline-block;
-          font-size: 0.73rem;
+          font-size: 0.68rem;
           font-weight: 700;
-          color: rgba(244,240,230,0.9);
-          letter-spacing: 0.055em;
+          color: #fff;
+          letter-spacing: 0.045em;
           font-family: var(--font-body);
           white-space: nowrap;
-          animation: calloutIn 0.3s cubic-bezier(0.22,1,0.36,1) both;
+          animation: badgeIn 0.22s cubic-bezier(0.22,1,0.36,1) both;
         }
-        @keyframes calloutIn {
-          from { opacity: 0; transform: translateY(6px) scale(0.94); }
+        @keyframes badgeIn {
+          from { opacity: 0; transform: translateY(4px) scale(0.92); }
           to   { opacity: 1; transform: translateY(0)   scale(1); }
         }
+
         @media (min-width: 641px) and (max-width: 1023px) {
           #hero { grid-template-columns: 1fr !important; padding-top: 96px !important; }
           .hero-photo-col { display: none !important; }
