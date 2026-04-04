@@ -15,7 +15,7 @@ const PROFILE_LINKS = [
   { label: "ORCID",    url: "https://orcid.org/0009-0002-0106-5730" },
 ];
 
-/* Messages for the photo hover cursor — cycle every 2s of accumulated hover */
+/* Messages for the photo hover cursor — progressive intervals: 2s, 3s, 4s… */
 const CURSOR_MESSAGES = [
   "I'm Saurabh",
   "I'm still Saurabh",
@@ -38,6 +38,10 @@ const BUBBLE_COLORS = [
   "#a8cc30", // lime        — "U're my friend"
   "#7c5cfc", // violet      — "It seems BFF"
 ] as const;
+
+/* Cumulative hover-time thresholds for each message (ms).
+   1st instant, 2nd after +2s, 3rd +3s, 4th +4s… */
+const MSG_THRESHOLDS = [0, 2000, 5000, 9000, 14000, 20000, 27000, 35000] as const;
 
 /* ── Canvas confetti burst (same as Intro) — fires on the BFF message ── */
 function fireConfetti() {
@@ -209,7 +213,6 @@ export function Hero() {
     const bubble  = photoCursorBubbleRef.current;
     if (!ring || !outline || !bubble) return;
 
-    const MSG_STEP_MS  = 2_000;
     let hoverActive    = false;
     let hoverStart: number | null = null;
     let accumMs        = 0;
@@ -217,29 +220,16 @@ export function Hero() {
     let curIdx         = 0;
 
     // ── Initial states ────────────────────────────────────────────────────
-    // Small cursor ring: starts off-screen, follows mouse near the photo area
     gsap.set(ring,    { x: -200, y: -200, opacity: 0, scale: 0.85 });
-    // Portrait outline: hidden until hover
     gsap.set(outline, { opacity: 0 });
-    // Liquid label: hidden, parked off-screen
-    gsap.set(bubble,  { x: -400, y: -400, opacity: 0, scale: 0.85 });
+    gsap.set(bubble,  { x: -400, y: -400, opacity: 0, scale: 0.9 });
 
-    // Smooth-follow quickTo for the small cursor ring
-    const rxTo = gsap.quickTo(ring, "x", { duration: 0.4, ease: "power3.out" });
-    const ryTo = gsap.quickTo(ring, "y", { duration: 0.5, ease: "power3.out" });
-    // Smooth-follow quickTo for the liquid label (slight lag for fluid feel)
-    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.28, ease: "power2.out" });
-    const byTo = gsap.quickTo(bubble, "y", { duration: 0.32, ease: "power2.out" });
-
-    // Update accent colour on the outline's feFlood and on the ring border
-    const applyColor = (idx: number, immediate = false) => {
-      const col  = BUBBLE_COLORS[idx];
-      const dur  = immediate ? 0 : 0.55;
-      // Update SVG feFlood color so outline changes hue
-      const flood = document.querySelector<SVGFEFloodElement>("#portrait-outline feFlood");
-      if (flood) flood.setAttribute("flood-color", col);
-      gsap.to(ring, { borderColor: col, duration: dur });
-    };
+    // Magnetic lag: slow quickTo mimics the Codrops magnetic offset feel
+    const rxTo = gsap.quickTo(ring, "x", { duration: 0.75, ease: "power3.out" });
+    const ryTo = gsap.quickTo(ring, "y", { duration: 0.85, ease: "power3.out" });
+    // Callout follows cursor with a soft lag
+    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.35, ease: "power2.out" });
+    const byTo = gsap.quickTo(bubble, "y", { duration: 0.38, ease: "power2.out" });
 
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
@@ -250,10 +240,10 @@ export function Hero() {
       const inY    = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
       const isOver = inX && inY;
 
-      // ── Always move the liquid label with the cursor when hovering ──────
+      // Callout floats just above-right of cursor while hovering
       if (hoverActive) {
         bxTo(e.clientX + 20);
-        byTo(e.clientY + 16);
+        byTo(e.clientY - 56);
       }
 
       if (isOver && !hoverActive) {
@@ -261,26 +251,28 @@ export function Hero() {
         hoverActive = true;
         hoverStart  = Date.now();
 
-        // Cursor ring: shrink and fade out (it "transforms into" the outline)
-        gsap.to(ring, { opacity: 0, scale: 0.4, duration: 0.35, ease: "power2.in", overwrite: true });
+        // Ring fades out — outline takes over as the silhouette border
+        gsap.to(ring, { opacity: 0, scale: 0.5, duration: 0.4, ease: "power2.in", overwrite: true });
 
-        // Portrait outline: fade in — traces the real image silhouette
-        applyColor(curIdx, true);
-        gsap.to(outline, { opacity: 1, duration: 0.55, ease: "power2.out", overwrite: true });
+        // Outline fades in slowly and stays one fixed colour
+        gsap.to(outline, { opacity: 1, duration: 0.9, ease: "power2.out", overwrite: true });
 
-        // Liquid label: teleport to cursor then fade in
-        gsap.set(bubble, { x: e.clientX + 20, y: e.clientY + 16 });
+        // Callout appears at cursor
+        gsap.set(bubble, { x: e.clientX + 20, y: e.clientY - 56 });
         gsap.to(bubble, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)", overwrite: true });
 
-        // Message cycling
+        // Progressive message cycling: find highest threshold crossed
         msgTimer = setInterval(() => {
-          const total = accumMs + (hoverStart ? Date.now() - hoverStart : 0);
-          const idx   = Math.floor(total / MSG_STEP_MS) % CURSOR_MESSAGES.length;
-          if (idx !== curIdx) {
-            curIdx = idx;
-            setMsgIdx(idx);
-            applyColor(idx);
-            if (idx === CURSOR_MESSAGES.length - 1) fireConfetti();
+          const total  = accumMs + (hoverStart ? Date.now() - hoverStart : 0);
+          let newIdx   = 0;
+          for (let i = MSG_THRESHOLDS.length - 1; i >= 0; i--) {
+            if (total >= MSG_THRESHOLDS[i]) { newIdx = i; break; }
+          }
+          newIdx = Math.min(newIdx, CURSOR_MESSAGES.length - 1);
+          if (newIdx !== curIdx) {
+            curIdx = newIdx;
+            setMsgIdx(newIdx);
+            if (newIdx === CURSOR_MESSAGES.length - 1) fireConfetti();
           }
         }, 200);
 
@@ -290,25 +282,25 @@ export function Hero() {
         if (hoverStart) { accumMs += Date.now() - hoverStart; hoverStart = null; }
         if (msgTimer)   { clearInterval(msgTimer); msgTimer = null; }
 
-        // Outline: fade out
-        gsap.to(outline, { opacity: 0, duration: 0.35, ease: "power2.in", overwrite: true });
+        // Outline fades out
+        gsap.to(outline, { opacity: 0, duration: 0.5, ease: "power2.in", overwrite: true });
 
-        // Cursor ring: reappear at cursor position
-        gsap.set(ring, { x: e.clientX - 40, y: e.clientY - 40, scale: 0.4 });
-        gsap.to(ring, { opacity: 0.7, scale: 1, duration: 0.35, ease: "back.out(1.7)", overwrite: true });
+        // Ring re-materialises at cursor
+        gsap.set(ring, { x: e.clientX - 40, y: e.clientY - 40, scale: 0.5 });
+        gsap.to(ring, { opacity: 0.7, scale: 1, duration: 0.4, ease: "back.out(1.7)", overwrite: true });
 
-        // Label: fade out
-        gsap.to(bubble, { opacity: 0, scale: 0.85, duration: 0.25, overwrite: true });
+        // Callout hides
+        gsap.to(bubble, { opacity: 0, scale: 0.9, duration: 0.25, overwrite: true });
       }
 
-      // ── Cursor ring follows mouse when NOT in hover mode ─────────────────
+      // Ring tracks cursor when not in hover mode
       if (!hoverActive) {
         rxTo(e.clientX - 40);
         ryTo(e.clientY - 40);
-        // Show ring when approaching the photo area
-        const nearX = e.clientX >= rect.left - 120;
+        // Ring becomes visible only when approaching the photo area
+        const nearX = e.clientX >= rect.left - 140;
         const nearY = e.clientY >= rect.top && e.clientY <= rect.bottom;
-        gsap.to(ring, { opacity: nearX && nearY ? 0.65 : 0, duration: 0.3, overwrite: false });
+        gsap.to(ring, { opacity: nearX && nearY ? 0.6 : 0, duration: 0.4, overwrite: false });
       }
     };
 
@@ -600,31 +592,21 @@ export function Hero() {
                       0 0 0 18 -7" result="goo" />
           </filter>
 
-          {/* Portrait silhouette outline:
-              1. dilate the alpha = slightly bigger silhouette
-              2. color it with feFlood (color updated by GSAP/JS on message change)
-              3. feComposite out = subtract original alpha → only the border strip
-              4. feDisplacementMap with animated turbulence = organic noisy wobble */}
-          <filter id="portrait-outline" x="-8%" y="-8%" width="116%" height="116%" colorInterpolationFilters="sRGB">
-            <feMorphology operator="dilate" radius="4" in="SourceAlpha" result="dilated" />
-            <feFlood floodColor="#F54E26" floodOpacity="1" result="fill-col" />
+          {/* Portrait silhouette outline — outset aura effect:
+              radius="18" creates a clear gap (outset) between silhouette and the glow ring.
+              Fixed soft-white colour: never changes, stays smooth.
+              Slow turbulence (12s) with low displacement = gentle organic wobble. */}
+          <filter id="portrait-outline" x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
+            <feMorphology operator="dilate" radius="18" in="SourceAlpha" result="dilated" />
+            <feFlood floodColor="#ffffff" floodOpacity="0.55" result="fill-col" />
             <feComposite in="fill-col" in2="dilated" operator="in" result="colored-dilated" />
             <feComposite in="colored-dilated" in2="SourceAlpha" operator="out" result="border" />
-            <feTurbulence type="turbulence" baseFrequency="0.025 0.025" numOctaves="3" seed="5" result="turb">
+            <feTurbulence type="turbulence" baseFrequency="0.018 0.018" numOctaves="3" seed="8" result="turb">
               <animate attributeName="baseFrequency"
-                values="0.025 0.025;0.048 0.038;0.026 0.018;0.025 0.025"
-                dur="6s" repeatCount="indefinite" />
+                values="0.018 0.018;0.032 0.026;0.019 0.014;0.018 0.018"
+                dur="12s" repeatCount="indefinite" />
             </feTurbulence>
-            <feDisplacementMap in="border" in2="turb" scale="10" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-
-          {/* Goo / liquid-merge filter for the cursor label blobs.
-              The text lives OUTSIDE this filter so it stays crisp. */}
-          <filter id="label-goo" x="-60%" y="-60%" width="220%" height="220%" colorInterpolationFilters="sRGB">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur" />
-            <feColorMatrix in="blur" mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11" result="goo" />
-            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            <feDisplacementMap in="border" in2="turb" scale="6" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
       </svg>
@@ -649,7 +631,7 @@ export function Hero() {
         }}
       />
 
-      {/* ── Liquid cursor label — follows cursor, SVG goo blobs merge/separate ── */}
+      {/* ── Glass callout bubble — follows cursor above-right, tail points down ── */}
       <div
         ref={photoCursorBubbleRef}
         data-photo-cursor
@@ -662,94 +644,60 @@ export function Hero() {
           opacity:       0,
         }}
       >
-        <div style={{ position: "relative", display: "inline-block" }}>
-          {/* Blob layer — SVG #label-goo filter applied here ONLY so blobs merge */}
-          <div
-            key={`blobs-${msgIdx}`}
-            style={{
-              position:      "absolute",
-              inset:         "-14px -20px",
-              filter:        "url(#label-goo)",
-              zIndex:        0,
-              pointerEvents: "none",
-              overflow:      "visible",
-            }}
-          >
-            {/* Main pill blob */}
-            <div style={{
-              position:     "absolute",
-              inset:        "14px 20px",
-              borderRadius: "100px",
-              background:   BUBBLE_COLORS[msgIdx],
-            }} />
-            {/* Left side blob */}
-            <div
-              className="lbl-blob-l"
-              style={{
-                position:     "absolute",
-                width:        "26px",
-                height:       "26px",
-                borderRadius: "50%",
-                background:   BUBBLE_COLORS[msgIdx],
-                left:         "8px",
-                top:          "50%",
-                marginTop:    "-13px",
-              }}
-            />
-            {/* Right side blob */}
-            <div
-              className="lbl-blob-r"
-              style={{
-                position:     "absolute",
-                width:        "26px",
-                height:       "26px",
-                borderRadius: "50%",
-                background:   BUBBLE_COLORS[msgIdx],
-                right:        "8px",
-                top:          "50%",
-                marginTop:    "-13px",
-              }}
-            />
-          </div>
-          {/* Text — NOT inside the goo filter so it stays crisp */}
-          <span
-            key={`lbl-${msgIdx}`}
-            style={{
-              position:      "relative",
-              zIndex:        1,
-              display:       "inline-block",
-              padding:       "8px 22px",
-              fontSize:      "0.72rem",
-              fontWeight:    700,
-              color:         "#fff",
-              letterSpacing: "0.04em",
-              fontFamily:    "var(--font-body)",
-              textShadow:    "0 1px 4px rgba(0,0,0,0.55)",
-              whiteSpace:    "nowrap",
-              animation:     "photoCursorLabel 0.35s ease forwards",
-            }}
-          >
+        <div className="callout-bubble">
+          <span key={`lbl-${msgIdx}`} className="callout-text">
             {CURSOR_MESSAGES[msgIdx]}
           </span>
         </div>
       </div>
 
       <style>{`
-        @keyframes photoCursorLabel {
-          from { opacity: 0; transform: translateY(5px) scale(0.92); }
+        /* ── Glass callout bubble ──────────────────────────────────────────── */
+        .callout-bubble {
+          position: relative;
+          display: inline-block;
+          padding: 9px 17px 9px 17px;
+          border-radius: 14px;
+          /* Frosted glass — mirrors the nav surface */
+          background: rgba(6, 6, 9, 0.52);
+          backdrop-filter: blur(18px) saturate(1.7) brightness(1.10);
+          -webkit-backdrop-filter: blur(18px) saturate(1.7) brightness(1.10);
+          box-shadow:
+            0 0 0 0.5px rgba(255,255,255,0.18) inset,
+            0 1px 0   rgba(255,255,255,0.10) inset,
+            0 -1px 0  rgba(0,0,0,0.25) inset,
+            0 10px 36px rgba(0,0,0,0.55);
+          border: 0.5px solid rgba(255,255,255,0.13);
+          white-space: nowrap;
+        }
+        /* Callout tail — points down-left toward the cursor */
+        .callout-bubble::after {
+          content: '';
+          position: absolute;
+          left: 18px;
+          bottom: -9px;
+          width: 0;
+          height: 0;
+          border-left:  9px solid transparent;
+          border-right: 9px solid transparent;
+          border-top:   10px solid rgba(6,6,9,0.52);
+        }
+        /* Text: crisp, slide-up on each message change */
+        .callout-text {
+          display: inline-block;
+          font-size: 0.73rem;
+          font-weight: 700;
+          color: rgba(244,240,230,0.92);
+          letter-spacing: 0.055em;
+          font-family: var(--font-body);
+          white-space: nowrap;
+          animation: calloutIn 0.32s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        @keyframes calloutIn {
+          from { opacity: 0; transform: translateY(7px) scale(0.95); }
           to   { opacity: 1; transform: translateY(0)   scale(1); }
         }
-        /* Liquid blobs — gentle breathing keeps the goo alive */
-        .lbl-blob-l { animation: lblBlobL 1.7s ease-in-out infinite alternate; }
-        .lbl-blob-r { animation: lblBlobR 2.1s ease-in-out infinite alternate; }
-        @keyframes lblBlobL {
-          from { transform: translateY(-50%) scale(1)    translateX(0); }
-          to   { transform: translateY(-50%) scale(1.4)  translateX(-6px); }
-        }
-        @keyframes lblBlobR {
-          from { transform: translateY(-50%) scale(0.9)  translateX(0); }
-          to   { transform: translateY(-50%) scale(1.35) translateX(6px); }
-        }
+
         @media (min-width: 641px) and (max-width: 1023px) {
           #hero {
             grid-template-columns: 1fr !important;
