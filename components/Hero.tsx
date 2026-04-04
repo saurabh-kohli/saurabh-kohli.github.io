@@ -102,9 +102,8 @@ function fireConfetti() {
 export function Hero() {
   const sectionRef           = useRef<HTMLElement>(null);
   const photoColRef          = useRef<HTMLDivElement>(null);
-  const photoCursorRingRef   = useRef<HTMLDivElement>(null);  // small cursor circle
-  const photoOutlineRef      = useRef<HTMLDivElement>(null);  // image-silhouette outline
-  const photoCursorBubbleRef = useRef<HTMLDivElement>(null);  // cursor-following liquid label
+  const photoCursorRingRef   = useRef<HTMLDivElement>(null);  // morphing cursor blob
+  const photoCursorBubbleRef = useRef<HTMLDivElement>(null);  // callout label
   const [msgIdx, setMsgIdx] = useState(0);
 
   useEffect(() => {
@@ -208,63 +207,82 @@ export function Hero() {
   // ── Photo hover cursor — desktop (>1024px) only ───────────────────────────
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth <= 1024) return;
-    const ring    = photoCursorRingRef.current;
-    const outline = photoOutlineRef.current;
-    const bubble  = photoCursorBubbleRef.current;
-    if (!ring || !outline || !bubble) return;
+    const ring   = photoCursorRingRef.current;
+    const bubble = photoCursorBubbleRef.current;
+    if (!ring || !bubble) return;
 
-    let hoverActive    = false;
+    let hoverActive  = false;
     let hoverStart: number | null = null;
-    let accumMs        = 0;
+    let accumMs      = 0;
     let msgTimer: ReturnType<typeof setInterval> | null = null;
-    let curIdx         = 0;
+    let curIdx       = 0;
+    let ringMorphTl: gsap.core.Timeline | null = null;
 
-    // ── Initial states ────────────────────────────────────────────────────
-    gsap.set(ring,    { x: -200, y: -200, opacity: 0, scale: 0.85 });
-    gsap.set(outline, { opacity: 0 });
-    gsap.set(bubble,  { x: -400, y: -400, opacity: 0, scale: 0.9 });
+    // xPercent/yPercent: -50 keeps the ring centred on the cursor regardless of size
+    gsap.set(ring,   { x: -400, y: -400, xPercent: -50, yPercent: -50, opacity: 0 });
+    gsap.set(bubble, { x: -400, y: -400, opacity: 0, scale: 0.9 });
 
-    // Magnetic lag: slow quickTo mimics the Codrops magnetic offset feel
-    const rxTo = gsap.quickTo(ring, "x", { duration: 0.75, ease: "power3.out" });
+    // Ring follows cursor with magnetic lag (lerp feel from Codrops)
+    const rxTo = gsap.quickTo(ring, "x", { duration: 0.7,  ease: "power3.out" });
     const ryTo = gsap.quickTo(ring, "y", { duration: 0.85, ease: "power3.out" });
-    // Callout follows cursor with a soft lag
-    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.35, ease: "power2.out" });
-    const byTo = gsap.quickTo(bubble, "y", { duration: 0.38, ease: "power2.out" });
+    // Callout follows cursor tightly
+    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.22, ease: "power2.out" });
+    const byTo = gsap.quickTo(bubble, "y", { duration: 0.25, ease: "power2.out" });
 
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
       if (!photoEl) return;
-
       const rect   = photoEl.getBoundingClientRect();
       const inX    = e.clientX >= rect.left + rect.width * 0.15 && e.clientX <= rect.right;
       const inY    = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
       const isOver = inX && inY;
 
-      // Callout floats just above-right of cursor while hovering
+      // Ring always tracks the cursor (size & shape change on hover)
+      rxTo(e.clientX);
+      ryTo(e.clientY);
+
+      // Callout tracks cursor whenever visible
       if (hoverActive) {
-        bxTo(e.clientX + 20);
-        byTo(e.clientY - 56);
+        bxTo(e.clientX + 22);
+        byTo(e.clientY - 54);
       }
 
       if (isOver && !hoverActive) {
-        // ── ENTER ──────────────────────────────────────────────────────────
+        // ── ENTER: ring morphs into organic blob, callout appears ───────
         hoverActive = true;
         hoverStart  = Date.now();
 
-        // Ring fades out — outline takes over as the silhouette border
-        gsap.to(ring, { opacity: 0, scale: 0.5, duration: 0.4, ease: "power2.in", overwrite: true });
+        // Fade in + expand to large organic blob (Codrops "stuck" state)
+        if (ringMorphTl) { ringMorphTl.kill(); ringMorphTl = null; }
+        gsap.to(ring, {
+          width: 190, height: 190,
+          borderRadius: "60% 40% 35% 65% / 55% 45% 60% 40%",
+          borderColor: "rgba(255,255,255,0.42)",
+          borderWidth: "1.5px",
+          opacity: 0.5,
+          duration: 0.9,
+          ease: "power2.out",
+          overwrite: true,
+        });
+        // Start a slow infinite blob morph (simplex-noise equivalent via GSAP)
+        ringMorphTl = gsap.timeline({ repeat: -1 })
+          .to(ring, { borderRadius: "40% 60% 55% 45% / 62% 38% 56% 44%", duration: 3.8, ease: "sine.inOut" })
+          .to(ring, { borderRadius: "55% 45% 62% 38% / 42% 58% 47% 53%", duration: 3.2, ease: "sine.inOut" })
+          .to(ring, { borderRadius: "68% 32% 42% 58% / 55% 45% 62% 38%", duration: 4.1, ease: "sine.inOut" })
+          .to(ring, { borderRadius: "44% 56% 58% 42% / 38% 62% 44% 56%", duration: 3.6, ease: "sine.inOut" })
+          .to(ring, { borderRadius: "60% 40% 35% 65% / 55% 45% 60% 40%", duration: 3.5, ease: "sine.inOut" });
 
-        // Outline fades in slowly and stays one fixed colour
-        gsap.to(outline, { opacity: 1, duration: 0.9, ease: "power2.out", overwrite: true });
+        // Callout: teleport to cursor then animate in
+        gsap.set(bubble, { x: e.clientX + 22, y: e.clientY - 54 });
+        gsap.to(bubble, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.5)", overwrite: true });
+        // Also kick-start the quickTo so it follows without a 1-frame delay
+        bxTo(e.clientX + 22);
+        byTo(e.clientY - 54);
 
-        // Callout appears at cursor
-        gsap.set(bubble, { x: e.clientX + 20, y: e.clientY - 56 });
-        gsap.to(bubble, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)", overwrite: true });
-
-        // Progressive message cycling: find highest threshold crossed
+        // Progressive message cycling
         msgTimer = setInterval(() => {
-          const total  = accumMs + (hoverStart ? Date.now() - hoverStart : 0);
-          let newIdx   = 0;
+          const total = accumMs + (hoverStart ? Date.now() - hoverStart : 0);
+          let newIdx  = 0;
           for (let i = MSG_THRESHOLDS.length - 1; i >= 0; i--) {
             if (total >= MSG_THRESHOLDS[i]) { newIdx = i; break; }
           }
@@ -277,37 +295,38 @@ export function Hero() {
         }, 200);
 
       } else if (!isOver && hoverActive) {
-        // ── EXIT ───────────────────────────────────────────────────────────
+        // ── EXIT: ring contracts back to small circle ────────────────────
         hoverActive = false;
         if (hoverStart) { accumMs += Date.now() - hoverStart; hoverStart = null; }
         if (msgTimer)   { clearInterval(msgTimer); msgTimer = null; }
+        if (ringMorphTl){ ringMorphTl.kill(); ringMorphTl = null; }
 
-        // Outline fades out
-        gsap.to(outline, { opacity: 0, duration: 0.5, ease: "power2.in", overwrite: true });
-
-        // Ring re-materialises at cursor
-        gsap.set(ring, { x: e.clientX - 40, y: e.clientY - 40, scale: 0.5 });
-        gsap.to(ring, { opacity: 0.7, scale: 1, duration: 0.4, ease: "back.out(1.7)", overwrite: true });
-
-        // Callout hides
-        gsap.to(bubble, { opacity: 0, scale: 0.9, duration: 0.25, overwrite: true });
+        gsap.to(ring, {
+          width: 80, height: 80,
+          borderRadius: "50%",
+          borderColor: BUBBLE_COLORS[curIdx],
+          borderWidth: "2px",
+          opacity: 0.65,
+          duration: 0.55,
+          ease: "power2.inOut",
+          overwrite: true,
+        });
+        gsap.to(bubble, { opacity: 0, scale: 0.9, duration: 0.2, overwrite: true });
       }
 
-      // Ring tracks cursor when not in hover mode
+      // Ring visibility: show only near the photo column
       if (!hoverActive) {
-        rxTo(e.clientX - 40);
-        ryTo(e.clientY - 40);
-        // Ring becomes visible only when approaching the photo area
-        const nearX = e.clientX >= rect.left - 140;
+        const nearX = e.clientX >= rect.left - 150;
         const nearY = e.clientY >= rect.top && e.clientY <= rect.bottom;
-        gsap.to(ring, { opacity: nearX && nearY ? 0.6 : 0, duration: 0.4, overwrite: false });
+        gsap.to(ring, { opacity: nearX && nearY ? 0.6 : 0, duration: 0.35, overwrite: false });
       }
     };
 
     window.addEventListener("mousemove", handleMove);
     return () => {
       window.removeEventListener("mousemove", handleMove);
-      if (msgTimer) clearInterval(msgTimer);
+      if (msgTimer)    clearInterval(msgTimer);
+      if (ringMorphTl) ringMorphTl.kill();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -536,30 +555,6 @@ export function Hero() {
             priority
           />
         </div>
-
-        {/* Portrait silhouette outline — SVG morph edge, fades in on hover */}
-        <div
-          ref={photoOutlineRef}
-          style={{
-            position:      "absolute",
-            inset:         0,
-            opacity:       0,
-            pointerEvents: "none",
-            zIndex:        2,
-          }}
-        >
-          <Image
-            src={asset("/saurabh-transparent.png")}
-            alt=""
-            aria-hidden
-            fill
-            style={{
-              objectFit:      "contain",
-              objectPosition: "bottom right",
-              filter:         "url(#portrait-outline)",
-            }}
-          />
-        </div>
       </div>
 
       {/* Scroll hint */}
@@ -582,7 +577,6 @@ export function Hero() {
       {/* Embedded SVG Filters — zero-size so no layout impact */}
       <svg style={{ position: "absolute", width: 0, height: 0, pointerEvents: "none" }} aria-hidden>
         <defs>
-          {/* Gooey text effect for hero headline */}
           <filter id="hero-morph-threshold">
             <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
             <feColorMatrix in="blur" mode="matrix"
@@ -591,27 +585,10 @@ export function Hero() {
                       0 0 1 0 0
                       0 0 0 18 -7" result="goo" />
           </filter>
-
-          {/* Portrait silhouette outline — outset aura effect:
-              radius="18" creates a clear gap (outset) between silhouette and the glow ring.
-              Fixed soft-white colour: never changes, stays smooth.
-              Slow turbulence (12s) with low displacement = gentle organic wobble. */}
-          <filter id="portrait-outline" x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
-            <feMorphology operator="dilate" radius="18" in="SourceAlpha" result="dilated" />
-            <feFlood floodColor="#ffffff" floodOpacity="0.55" result="fill-col" />
-            <feComposite in="fill-col" in2="dilated" operator="in" result="colored-dilated" />
-            <feComposite in="colored-dilated" in2="SourceAlpha" operator="out" result="border" />
-            <feTurbulence type="turbulence" baseFrequency="0.018 0.018" numOctaves="3" seed="8" result="turb">
-              <animate attributeName="baseFrequency"
-                values="0.018 0.018;0.032 0.026;0.019 0.014;0.018 0.018"
-                dur="12s" repeatCount="indefinite" />
-            </feTurbulence>
-            <feDisplacementMap in="border" in2="turb" scale="6" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
         </defs>
       </svg>
 
-      {/* ── Small cursor ring — follows mouse near the photo, disappears on hover ── */}
+      {/* ── Cursor blob ring — follows mouse, morphs into organic blob on hover ── */}
       <div
         ref={photoCursorRingRef}
         data-photo-cursor
@@ -627,11 +604,11 @@ export function Hero() {
           pointerEvents: "none",
           zIndex:        9998,
           opacity:       0,
-          willChange:    "transform",
+          willChange:    "transform, width, height, border-radius",
         }}
       />
 
-      {/* ── Glass callout bubble — follows cursor above-right, tail points down ── */}
+      {/* ── Callout label — follows cursor, simple dark pill with tail ── */}
       <div
         ref={photoCursorBubbleRef}
         data-photo-cursor
@@ -652,66 +629,52 @@ export function Hero() {
       </div>
 
       <style>{`
-        /* ── Glass callout bubble ──────────────────────────────────────────── */
+        /* ── Callout bubble — plain dark pill with downward tail ────────────── */
         .callout-bubble {
           position: relative;
           display: inline-block;
-          padding: 9px 17px 9px 17px;
-          border-radius: 14px;
-          /* Frosted glass — mirrors the nav surface */
-          background: rgba(6, 6, 9, 0.52);
-          backdrop-filter: blur(18px) saturate(1.7) brightness(1.10);
-          -webkit-backdrop-filter: blur(18px) saturate(1.7) brightness(1.10);
-          box-shadow:
-            0 0 0 0.5px rgba(255,255,255,0.18) inset,
-            0 1px 0   rgba(255,255,255,0.10) inset,
-            0 -1px 0  rgba(0,0,0,0.25) inset,
-            0 10px 36px rgba(0,0,0,0.55);
-          border: 0.5px solid rgba(255,255,255,0.13);
+          padding: 8px 16px;
+          border-radius: 12px;
+          background: rgba(10, 10, 14, 0.88);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+          border: 0.5px solid rgba(255,255,255,0.1);
           white-space: nowrap;
         }
-        /* Callout tail — points down-left toward the cursor */
+        /* Tail pointing down-left toward the cursor */
         .callout-bubble::after {
           content: '';
           position: absolute;
-          left: 18px;
+          left: 16px;
           bottom: -9px;
-          width: 0;
-          height: 0;
+          width: 0; height: 0;
           border-left:  9px solid transparent;
           border-right: 9px solid transparent;
-          border-top:   10px solid rgba(6,6,9,0.52);
+          border-top:   10px solid rgba(10,10,14,0.88);
         }
-        /* Text: crisp, slide-up on each message change */
+        /* Text: slide-up on each message change */
         .callout-text {
           display: inline-block;
           font-size: 0.73rem;
           font-weight: 700;
-          color: rgba(244,240,230,0.92);
+          color: rgba(244,240,230,0.9);
           letter-spacing: 0.055em;
           font-family: var(--font-body);
           white-space: nowrap;
-          animation: calloutIn 0.32s cubic-bezier(0.22,1,0.36,1) both;
+          animation: calloutIn 0.3s cubic-bezier(0.22,1,0.36,1) both;
         }
         @keyframes calloutIn {
-          from { opacity: 0; transform: translateY(7px) scale(0.95); }
+          from { opacity: 0; transform: translateY(6px) scale(0.94); }
           to   { opacity: 1; transform: translateY(0)   scale(1); }
         }
-
         @media (min-width: 641px) and (max-width: 1023px) {
-          #hero {
-            grid-template-columns: 1fr !important;
-            padding-top: 96px !important;
-          }
+          #hero { grid-template-columns: 1fr !important; padding-top: 96px !important; }
           .hero-photo-col { display: none !important; }
           [data-photo-cursor] { display: none !important; }
         }
         @media (max-width: 640px) {
           .hero-photo-col {
-            display: block !important;
-            opacity: 1;
-            width: 100% !important;
-            pointer-events: none;
+            display: block !important; opacity: 1;
+            width: 100% !important; pointer-events: none;
           }
           [data-photo-cursor] { display: none !important; }
         }
