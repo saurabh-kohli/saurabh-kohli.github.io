@@ -213,21 +213,24 @@ export function Hero() {
 
     let hoverActive  = false;
     let hoverStart: number | null = null;
-    let accumMs      = 0;
     let msgTimer: ReturnType<typeof setInterval> | null = null;
     let curIdx       = 0;
     let ringMorphTl: gsap.core.Timeline | null = null;
+    // ringHalf tracks half the current ring width so centering stays correct
+    // without using xPercent (which causes jumps during width animation)
+    let ringHalf = 40; // half of 80px default
 
-    // xPercent/yPercent: -50 keeps the ring centred on the cursor regardless of size
-    gsap.set(ring,   { x: -400, y: -400, xPercent: -50, yPercent: -50, opacity: 0 });
-    gsap.set(bubble, { x: -400, y: -400, opacity: 0, scale: 0.9 });
+    // Park off-screen; CSS class handles initial opacity:0 so React re-renders
+    // can never stomp GSAP's live opacity value.
+    gsap.set(ring,   { x: -400, y: -400 });
+    gsap.set(bubble, { x: -400, y: -400, scale: 0.9 });
 
-    // Ring follows cursor with magnetic lag (lerp feel from Codrops)
-    const rxTo = gsap.quickTo(ring, "x", { duration: 0.7,  ease: "power3.out" });
-    const ryTo = gsap.quickTo(ring, "y", { duration: 0.85, ease: "power3.out" });
-    // Callout follows cursor tightly
-    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.22, ease: "power2.out" });
-    const byTo = gsap.quickTo(bubble, "y", { duration: 0.25, ease: "power2.out" });
+    // Ring follows cursor — tighter lag so it visually hugs the cursor
+    const rxTo = gsap.quickTo(ring, "x", { duration: 0.35, ease: "power3.out" });
+    const ryTo = gsap.quickTo(ring, "y", { duration: 0.4,  ease: "power3.out" });
+    // Callout follows cursor very tightly
+    const bxTo = gsap.quickTo(bubble, "x", { duration: 0.18, ease: "power2.out" });
+    const byTo = gsap.quickTo(bubble, "y", { duration: 0.20, ease: "power2.out" });
 
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
@@ -237,9 +240,9 @@ export function Hero() {
       const inY    = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
       const isOver = inX && inY;
 
-      // Ring always tracks the cursor (size & shape change on hover)
-      rxTo(e.clientX);
-      ryTo(e.clientY);
+      // Ring always tracks the cursor, offset by ringHalf so it centres on the cursor
+      rxTo(e.clientX - ringHalf);
+      ryTo(e.clientY - ringHalf);
 
       // Callout tracks cursor whenever visible
       if (hoverActive) {
@@ -252,7 +255,12 @@ export function Hero() {
         hoverActive = true;
         hoverStart  = Date.now();
 
-        // Fade in + expand to large organic blob (Codrops "stuck" state)
+        // Switch to large blob half-size immediately so centering is right
+        ringHalf = 95; // half of 190px
+        rxTo(e.clientX - ringHalf);
+        ryTo(e.clientY - ringHalf);
+
+        // Expand ring — do NOT use overwrite:true so quickTo x/y keep running
         if (ringMorphTl) { ringMorphTl.kill(); ringMorphTl = null; }
         gsap.to(ring, {
           width: 190, height: 190,
@@ -262,29 +270,29 @@ export function Hero() {
           opacity: 0.5,
           duration: 0.9,
           ease: "power2.out",
-          overwrite: true,
         });
-        // Start a slow infinite blob morph (simplex-noise equivalent via GSAP)
-        ringMorphTl = gsap.timeline({ repeat: -1 })
+        // Blob morph starts AFTER the expand finishes (delay = expand duration)
+        // so they don't fight over borderRadius
+        ringMorphTl = gsap.timeline({ repeat: -1, delay: 0.9 })
           .to(ring, { borderRadius: "40% 60% 55% 45% / 62% 38% 56% 44%", duration: 3.8, ease: "sine.inOut" })
           .to(ring, { borderRadius: "55% 45% 62% 38% / 42% 58% 47% 53%", duration: 3.2, ease: "sine.inOut" })
           .to(ring, { borderRadius: "68% 32% 42% 58% / 55% 45% 62% 38%", duration: 4.1, ease: "sine.inOut" })
           .to(ring, { borderRadius: "44% 56% 58% 42% / 38% 62% 44% 56%", duration: 3.6, ease: "sine.inOut" })
           .to(ring, { borderRadius: "60% 40% 35% 65% / 55% 45% 60% 40%", duration: 3.5, ease: "sine.inOut" });
 
-        // Callout: teleport to cursor then animate in
-        gsap.set(bubble, { x: e.clientX + 22, y: e.clientY - 54 });
-        gsap.to(bubble, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.5)", overwrite: true });
-        // Also kick-start the quickTo so it follows without a 1-frame delay
+        // Callout: position it, then fade/scale in WITHOUT overwrite so bxTo/byTo
+        // quickTo tweens are never killed by the opacity animation
+        gsap.set(bubble, { x: e.clientX + 22, y: e.clientY - 54, scale: 0.9, opacity: 0 });
+        gsap.to(bubble, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.5)" });
         bxTo(e.clientX + 22);
         byTo(e.clientY - 54);
 
-        // Progressive message cycling
+        // Message timer — resets completely on every new hover session
         msgTimer = setInterval(() => {
-          const total = accumMs + (hoverStart ? Date.now() - hoverStart : 0);
+          const elapsed = hoverStart ? Date.now() - hoverStart : 0;
           let newIdx  = 0;
           for (let i = MSG_THRESHOLDS.length - 1; i >= 0; i--) {
-            if (total >= MSG_THRESHOLDS[i]) { newIdx = i; break; }
+            if (elapsed >= MSG_THRESHOLDS[i]) { newIdx = i; break; }
           }
           newIdx = Math.min(newIdx, CURSOR_MESSAGES.length - 1);
           if (newIdx !== curIdx) {
@@ -295,30 +303,39 @@ export function Hero() {
         }, 200);
 
       } else if (!isOver && hoverActive) {
-        // ── EXIT: ring contracts back to small circle ────────────────────
+        // ── EXIT: ring contracts back to small circle, everything resets ──
         hoverActive = false;
-        if (hoverStart) { accumMs += Date.now() - hoverStart; hoverStart = null; }
-        if (msgTimer)   { clearInterval(msgTimer); msgTimer = null; }
-        if (ringMorphTl){ ringMorphTl.kill(); ringMorphTl = null; }
+        hoverStart  = null;
+        if (msgTimer)    { clearInterval(msgTimer); msgTimer = null; }
+        if (ringMorphTl) { ringMorphTl.kill(); ringMorphTl = null; }
+
+        // Reset message index so next hover always starts from message 0
+        curIdx = 0;
+        setMsgIdx(0);
+
+        // Restore half-size for small ring
+        ringHalf = 40;
+        rxTo(e.clientX - ringHalf);
+        ryTo(e.clientY - ringHalf);
 
         gsap.to(ring, {
           width: 80, height: 80,
           borderRadius: "50%",
-          borderColor: BUBBLE_COLORS[curIdx],
+          borderColor: BUBBLE_COLORS[0],
           borderWidth: "2px",
           opacity: 0.65,
           duration: 0.55,
           ease: "power2.inOut",
           overwrite: true,
         });
-        gsap.to(bubble, { opacity: 0, scale: 0.9, duration: 0.2, overwrite: true });
+        gsap.to(bubble, { opacity: 0, scale: 0.9, duration: 0.2 });
       }
 
       // Ring visibility: show only near the photo column
       if (!hoverActive) {
         const nearX = e.clientX >= rect.left - 150;
         const nearY = e.clientY >= rect.top && e.clientY <= rect.bottom;
-        gsap.to(ring, { opacity: nearX && nearY ? 0.6 : 0, duration: 0.35, overwrite: false });
+        gsap.to(ring, { opacity: nearX && nearY ? 0.6 : 0, duration: 0.35 });
       }
     };
 
@@ -592,6 +609,7 @@ export function Hero() {
       <div
         ref={photoCursorRingRef}
         data-photo-cursor
+        className="photo-cursor-ring"
         style={{
           position:      "fixed",
           left:          0,
@@ -603,7 +621,6 @@ export function Hero() {
           boxSizing:     "border-box",
           pointerEvents: "none",
           zIndex:        9998,
-          opacity:       0,
           willChange:    "transform, width, height, border-radius",
         }}
       />
@@ -612,13 +629,13 @@ export function Hero() {
       <div
         ref={photoCursorBubbleRef}
         data-photo-cursor
+        className="photo-cursor-bubble"
         style={{
           position:      "fixed",
           left:          0,
           top:           0,
           pointerEvents: "none",
           zIndex:        9999,
-          opacity:       0,
         }}
       >
         <div className="callout-bubble">
@@ -629,6 +646,12 @@ export function Hero() {
       </div>
 
       <style>{`
+        /* Initial hidden state — GSAP controls live opacity via inline style,
+           so we use CSS classes (not JSX style prop) to avoid React stomping
+           GSAP's value on every re-render (e.g. when msgIdx changes). */
+        .photo-cursor-ring   { opacity: 0; }
+        .photo-cursor-bubble { opacity: 0; }
+
         /* ── Callout bubble — plain dark pill with downward tail ────────────── */
         .callout-bubble {
           position: relative;
