@@ -39,6 +39,62 @@ const BUBBLE_COLORS = [
   "#7c5cfc", // violet      — "It seems BFF"
 ] as const;
 
+/* ── Canvas confetti burst (same as Intro) — fires on the BFF message ── */
+function fireConfetti() {
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText =
+    "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10001";
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) { canvas.remove(); return; }
+  const COLORS = ["#F54E26", "#a8cc30", "#7c5cfc", "#0ea5e9", "#f59e0b", "#f43f5e", "#ffffff"];
+  type P = {
+    x: number; y: number; vx: number; vy: number;
+    color: string; w: number; h: number;
+    rot: number; rotV: number; shape: "rect" | "circle";
+  };
+  const pts: P[] = Array.from({ length: 160 }, () => ({
+    x:     Math.random() * canvas.width,
+    y:     -Math.random() * 400,
+    vx:    (Math.random() - 0.5) * 6,
+    vy:    Math.random() * 5 + 2,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    w:     Math.random() * 12 + 5,
+    h:     Math.random() * 7 + 3,
+    rot:   Math.random() * 360,
+    rotV:  (Math.random() - 0.5) * 14,
+    shape: Math.random() > 0.45 ? "rect" : "circle",
+  }));
+  const start = performance.now();
+  const dur   = 3000;
+  const tick  = (now: number) => {
+    const elapsed = now - start;
+    if (elapsed > dur) { canvas.remove(); return; }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const alpha = Math.max(0, 1 - elapsed / dur);
+    pts.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.13; p.rot += p.rotV;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle   = p.color;
+      if (p.shape === "rect") {
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      } else {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 export function Hero() {
   const sectionRef          = useRef<HTMLElement>(null);
   const photoColRef         = useRef<HTMLDivElement>(null);
@@ -218,6 +274,8 @@ export function Hero() {
             curIdx = idx;
             setMsgIdx(idx);
             applyColor(idx);
+            // 🎉 Confetti every time the BFF message appears (last in cycle)
+            if (idx === CURSOR_MESSAGES.length - 1) fireConfetti();
           }
         }, 200);
 
