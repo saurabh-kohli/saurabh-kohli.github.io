@@ -15,7 +15,7 @@ const PROFILE_LINKS = [
   { label: "ORCID",    url: "https://orcid.org/0009-0002-0106-5730" },
 ];
 
-/* Messages for the photo hover cursor — cycle every 30s of accumulated hover */
+/* Messages for the photo hover cursor — cycle every 2s of accumulated hover */
 const CURSOR_MESSAGES = [
   "I'm Saurabh",
   "I'm still Saurabh",
@@ -27,10 +27,23 @@ const CURSOR_MESSAGES = [
   "It seems BFF",
 ] as const;
 
+/* Vibrant accent colours — one per message */
+const BUBBLE_COLORS = [
+  "#F54E26", // orange-red  — "I'm Saurabh"
+  "#a8cc30", // lime        — "I'm still Saurabh"
+  "#7c5cfc", // violet      — "Ok! call me Saby"
+  "#0ea5e9", // sky         — "I'm not Virat Kohli"
+  "#f59e0b", // amber       — "Are you stalking?"
+  "#f43f5e", // rose        — "Calling 911..."
+  "#a8cc30", // lime        — "U're my friend"
+  "#7c5cfc", // violet      — "It seems BFF"
+] as const;
+
 export function Hero() {
-  const sectionRef     = useRef<HTMLElement>(null);
-  const photoColRef    = useRef<HTMLDivElement>(null);
-  const photoCursorRef = useRef<HTMLDivElement>(null);
+  const sectionRef          = useRef<HTMLElement>(null);
+  const photoColRef         = useRef<HTMLDivElement>(null);
+  const photoCursorRingRef  = useRef<HTMLDivElement>(null);
+  const photoCursorBubbleRef = useRef<HTMLDivElement>(null);
   const [msgIdx, setMsgIdx] = useState(0);
 
   useEffect(() => {
@@ -134,54 +147,104 @@ export function Hero() {
   // ── Photo hover cursor — desktop (>1024px) only ───────────────────────────
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth <= 1024) return;
-    const cursor = photoCursorRef.current;
-    if (!cursor) return;
+    const ring   = photoCursorRingRef.current;
+    const bubble = photoCursorBubbleRef.current;
+    if (!ring || !bubble) return;
 
-    const MSG_STEP_MS = 30_000; // advance message every 30 s of accumulated hover
-    let hoverActive  = false;
+    const MSG_STEP_MS = 2_000; // advance message every 2 s of accumulated hover
+    let hoverActive    = false;
     let hoverStart: number | null = null;
-    let accumMs      = 0;
+    let accumMs        = 0;
     let msgTimer: ReturnType<typeof setInterval> | null = null;
-    let curIdx       = 0;
+    let curIdx         = 0;
+    let inBoundaryMode = false;
 
-    // Start slightly small so the hover-in scale: 1 gives a satisfying pop
-    gsap.set(cursor, { scale: 0.85 });
+    // Initial cursor state — tiny circle parked off-screen
+    gsap.set(ring, { x: -200, y: -200, width: 110, height: 110, opacity: 0, scale: 0.85, borderRadius: "50%" });
+    gsap.set(bubble, { x: -999, y: -999, opacity: 0, scale: 0.85 });
 
-    const xTo = gsap.quickTo(cursor, "x", { duration: 0.45, ease: "power3.out" });
-    const yTo = gsap.quickTo(cursor, "y", { duration: 0.55, ease: "power3.out" });
+    // Smooth cursor-follow tweens (only active when NOT in boundary mode)
+    const xTo = gsap.quickTo(ring, "x", { duration: 0.45, ease: "power3.out" });
+    const yTo = gsap.quickTo(ring, "y", { duration: 0.55, ease: "power3.out" });
+
+    const applyColor = (idx: number, immediate = false) => {
+      const col = BUBBLE_COLORS[idx];
+      const dur = immediate ? 0 : 0.55;
+      gsap.to(ring, { borderColor: col, boxShadow: `0 0 28px 5px ${col}44`, duration: dur });
+    };
 
     const handleMove = (e: MouseEvent) => {
       const photoEl = document.querySelector<HTMLElement>(".hero-photo-col");
       if (!photoEl) return;
 
       const rect  = photoEl.getBoundingClientRect();
-      // Trim 15 % from the left edge (transparent area) for a tighter hit zone
+      // Hit zone: right 85 % of photo, 5 % vertical inset
       const inX   = e.clientX >= rect.left + rect.width * 0.15 && e.clientX <= rect.right;
       const inY   = e.clientY >= rect.top  + rect.height * 0.05 && e.clientY <= rect.bottom - rect.height * 0.05;
       const isOver = inX && inY;
 
       if (isOver && !hoverActive) {
-        hoverActive  = true;
-        hoverStart   = Date.now();
-        gsap.to(cursor, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.7)" });
+        // ── ENTER: cursor ring expands to wrap the portrait ──────────────
+        hoverActive    = true;
+        inBoundaryMode = true;
+        hoverStart     = Date.now();
+
+        const ringX = rect.left + rect.width  * 0.16;
+        const ringY = rect.top  + rect.height * 0.01;
+        const ringW = rect.width  * 0.84;
+        const ringH = rect.height * 0.97;
+
+        applyColor(curIdx, true);
+        gsap.to(ring, {
+          x: ringX, y: ringY,
+          width: ringW, height: ringH,
+          borderRadius: "22px",
+          opacity: 1, scale: 1,
+          duration: 0.75,
+          ease: "elastic.out(0.7, 0.75)",
+          overwrite: true,
+        });
+
+        // Liquid bubble at the bottom of the photo
+        const bx = rect.left + rect.width  * 0.5 - 80;
+        const by = rect.bottom - 56;
+        gsap.to(bubble, { x: bx, y: by, opacity: 1, scale: 1, duration: 0.55, ease: "back.out(1.7)", overwrite: true });
+
+        // Message cycling (checks every 200 ms; advances on 2 s boundary)
         msgTimer = setInterval(() => {
           const total = accumMs + (hoverStart ? Date.now() - hoverStart : 0);
-          const idx   = Math.min(Math.floor(total / MSG_STEP_MS), CURSOR_MESSAGES.length - 1);
-          if (idx !== curIdx) { curIdx = idx; setMsgIdx(idx); }
-        }, 2000);
+          const idx   = Math.floor(total / MSG_STEP_MS) % CURSOR_MESSAGES.length;
+          if (idx !== curIdx) {
+            curIdx = idx;
+            setMsgIdx(idx);
+            applyColor(idx);
+          }
+        }, 200);
+
       } else if (!isOver && hoverActive) {
-        hoverActive = false;
+        // ── EXIT: ring contracts back to a small cursor circle ────────────
+        hoverActive    = false;
+        inBoundaryMode = false;
         if (hoverStart) { accumMs += Date.now() - hoverStart; hoverStart = null; }
-        if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
-        gsap.to(cursor, { opacity: 0, scale: 0.85, duration: 0.25 });
+        if (msgTimer)   { clearInterval(msgTimer); msgTimer = null; }
+
+        gsap.to(ring, {
+          x: e.clientX - 55, y: e.clientY - 55,
+          width: 110, height: 110,
+          borderRadius: "50%",
+          opacity: 0, scale: 0.85,
+          boxShadow: "none",
+          duration: 0.4,
+          ease: "power2.in",
+          overwrite: true,
+        });
+        gsap.to(bubble, { opacity: 0, scale: 0.85, duration: 0.25, overwrite: true });
       }
 
-      if (isOver) {
-        // Gentle magnetic pull toward the face area (upper portion of photo)
-        const faceCx = rect.left + rect.width  * 0.58;
-        const faceCy = rect.top  + rect.height * 0.28;
-        xTo(e.clientX + (faceCx - e.clientX) * 0.1);
-        yTo(e.clientY + (faceCy - e.clientY) * 0.07);
+      // Cursor-follow mode — ring tracks mouse when not locked to image
+      if (!inBoundaryMode) {
+        xTo(e.clientX - 55);
+        yTo(e.clientY - 55);
       }
     };
 
@@ -473,60 +536,156 @@ export function Hero() {
         </defs>
       </svg>
 
-      {/* ── Photo hover cursor — desktop only ──────────────────────────── */}
+      {/* ── Photo cursor ring — morphs from tiny circle to image boundary ── */}
       <div
-        ref={photoCursorRef}
+        ref={photoCursorRingRef}
         data-photo-cursor
         style={{
           position:      "fixed",
-          left:          "-55px",   // GSAP x=clientX → ring center lands on mouse
-          top:           "-55px",
+          left:          0,
+          top:           0,
           width:         "110px",
+          height:        "110px",
+          borderRadius:  "50%",
+          border:        `2.5px solid ${BUBBLE_COLORS[0]}`,
+          boxSizing:     "border-box",
+          filter:        "url(#cursor-noise-filter)",
+          pointerEvents: "none",
+          zIndex:        9998,
+          opacity:       0,
+          willChange:    "transform, width, height, border-radius",
+        }}
+      />
+
+      {/* ── Liquid text bubble — goo-effect with vibrant per-message colour ── */}
+      <div
+        ref={photoCursorBubbleRef}
+        data-photo-cursor
+        style={{
+          position:      "fixed",
+          left:          0,
+          top:           0,
           pointerEvents: "none",
           zIndex:        9999,
           opacity:       0,
-          display:       "flex",
-          flexDirection: "column",
-          alignItems:    "center",
         }}
       >
-        {/* Noisy ring */}
-        <div style={{
-          width:        "110px",
-          height:       "110px",
-          borderRadius: "50%",
-          border:       "1.5px solid rgba(255,255,255,0.85)",
-          filter:       "url(#cursor-noise-filter)",
-          willChange:   "filter",
-          flexShrink:   0,
-        }} />
-        {/* Text bubble — re-mounts on each message change to trigger fade-in */}
-        <div
-          key={msgIdx}
-          style={{
-            marginTop:      "10px",
-            fontSize:       "0.72rem",
-            fontWeight:     600,
-            color:          "#fff",
-            background:     "rgba(10,10,10,0.65)",
-            padding:        "4px 14px",
-            borderRadius:   "100px",
-            whiteSpace:     "nowrap",
-            backdropFilter: "blur(10px)",
-            border:         "0.5px solid rgba(255,255,255,0.2)",
-            letterSpacing:  "0.03em",
-            fontFamily:     "var(--font-body)",
-            animation:      "photoCursorLabel 0.4s ease forwards",
-          }}
-        >
-          {CURSOR_MESSAGES[msgIdx]}
+        {/* Outer wrapper sizes around the text and gives room for blobs */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          {/* ── Blob layer: CSS blur+contrast goo trick ─────────────────── *
+           *  The blobs need a DARK background to blend into so the contrast *
+           *  snap produces clean liquid edges against the page (#0a0a0a).   */}
+          <div
+            key={`blobs-${msgIdx}`}
+            style={{
+              position:     "absolute",
+              inset:        "-10px -14px",
+              background:   "#0a0a0a",
+              borderRadius: "200px",
+              filter:       "blur(7px) contrast(22)",
+              zIndex:       0,
+              overflow:     "visible",
+            }}
+          >
+            {/* Main pill — fills the inset area */}
+            <div style={{
+              position:     "absolute",
+              inset:        "10px 14px",
+              borderRadius: "100px",
+              background:   BUBBLE_COLORS[msgIdx],
+            }} />
+            {/* Left side blob */}
+            <div
+              className="bubble-blob-l"
+              style={{
+                position:     "absolute",
+                width:        "22px",
+                height:       "22px",
+                borderRadius: "50%",
+                background:   BUBBLE_COLORS[msgIdx],
+                left:         "6px",
+                top:          "50%",
+                marginTop:    "-11px",
+              }}
+            />
+            {/* Right side blob */}
+            <div
+              className="bubble-blob-r"
+              style={{
+                position:     "absolute",
+                width:        "22px",
+                height:       "22px",
+                borderRadius: "50%",
+                background:   BUBBLE_COLORS[msgIdx],
+                right:        "6px",
+                top:          "50%",
+                marginTop:    "-11px",
+              }}
+            />
+            {/* Top drip blob */}
+            <div
+              className="bubble-blob-t"
+              style={{
+                position:     "absolute",
+                width:        "16px",
+                height:       "16px",
+                borderRadius: "50%",
+                background:   BUBBLE_COLORS[msgIdx],
+                left:         "50%",
+                marginLeft:   "-8px",
+                top:          "2px",
+              }}
+            />
+          </div>
+          {/* ── Text layer — sits above the filtered blobs ─────────────── */}
+          <span
+            key={`label-${msgIdx}`}
+            style={{
+              position:      "relative",
+              zIndex:        1,
+              display:       "inline-block",
+              padding:       "7px 20px",
+              fontSize:      "0.72rem",
+              fontWeight:    700,
+              color:         "#fff",
+              letterSpacing: "0.04em",
+              fontFamily:    "var(--font-body)",
+              textShadow:    "0 1px 4px rgba(0,0,0,0.6)",
+              whiteSpace:    "nowrap",
+              animation:     "photoCursorLabel 0.35s ease forwards",
+            }}
+          >
+            {CURSOR_MESSAGES[msgIdx]}
+          </span>
         </div>
       </div>
 
       <style>{`
         @keyframes photoCursorLabel {
-          from { opacity: 0; transform: translateY(4px); }
-          to   { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(6px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0)   scale(1); }
+        }
+        /* Liquid blobs — gentle breathing to keep the goo alive */
+        .bubble-blob-l {
+          animation: blobPulseL 1.6s ease-in-out infinite alternate;
+        }
+        .bubble-blob-r {
+          animation: blobPulseR 1.9s ease-in-out infinite alternate;
+        }
+        .bubble-blob-t {
+          animation: blobPulseT 2.1s ease-in-out infinite alternate;
+        }
+        @keyframes blobPulseL {
+          from { transform: translateY(-50%) scale(1)    translateX(0); }
+          to   { transform: translateY(-50%) scale(1.35) translateX(-4px); }
+        }
+        @keyframes blobPulseR {
+          from { transform: translateY(-50%) scale(0.9)  translateX(0); }
+          to   { transform: translateY(-50%) scale(1.3)  translateX(4px); }
+        }
+        @keyframes blobPulseT {
+          from { transform: translateX(-50%) scale(1); }
+          to   { transform: translateX(-50%) scale(1.4) translateY(-4px); }
         }
         @media (min-width: 641px) and (max-width: 1023px) {
           #hero {
