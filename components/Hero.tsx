@@ -641,11 +641,11 @@ export function Hero() {
                   yChannelSelector="G"
                   result="warpedBlob"
                 />
-                {/* Erode inward to leave only a ~3px ring at the outer edge */}
+                {/* Erode inward to leave only a ~1px ring at the outer edge */}
                 <feMorphology
                   in="warpedBlob"
                   operator="erode"
-                  radius="19"
+                  radius="21"
                   result="innerBlob"
                 />
                 <feComposite in="warpedBlob" in2="innerBlob" operator="out" result="ring" />
