@@ -18,14 +18,14 @@ const PROFILE_LINKS = [
 
 /* Messages for the photo hover cursor — progressive intervals: 2s, 3s, 4s… */
 const CURSOR_MESSAGES = [
+  "hey there 👋",
   "I'm Saurabh",
-  "I'm still Saurabh",
-  "Ok! call me Saby",
-  "I'm not Virat Kohli",
-  "Are you stalking?",
-  "Calling 911...",
-  "U're my friend",
-  "It seems BFF",
+  "builder & tinkerer",
+  "wait, still hovering?",
+  "ok you're curious 👀",
+  "deep dive mode: on 🔍",
+  "fine, let's be friends",
+  "BFF unlocked 🎉",
 ] as const;
 
 /* Vibrant accent colours — one per message */
