@@ -76,6 +76,9 @@ export function Intro() {
   useEffect(() => {
     if (done) return;
     
+    // Lock page scroll + pointer events while the intro is visible
+    document.body.classList.add("intro-active");
+
     let ctx = gsap.context(() => {
       /* ── Morphing text engine ── */
       const morphTime    = 0.8; // Faster morphs
@@ -125,6 +128,7 @@ export function Intro() {
       const tl = gsap.timeline({
         onComplete: () => {
           cancelAnimationFrame(rafId);
+          document.body.classList.remove("intro-active");
           try { sessionStorage.setItem("intro-done", "1"); } catch {}
           window.dispatchEvent(new CustomEvent("intro-complete"));
           setDone(true);
@@ -134,6 +138,7 @@ export function Intro() {
       // FAILSAFE: Ensure it unmounts even if GSAP timeline gets stuck
       const failsafeTimer = setTimeout(() => {
         cancelAnimationFrame(rafId);
+        document.body.classList.remove("intro-active");
         try { sessionStorage.setItem("intro-done", "1"); } catch {}
         window.dispatchEvent(new CustomEvent("intro-complete"));
         setDone(true);

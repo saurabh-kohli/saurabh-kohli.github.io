@@ -6,6 +6,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── INTRO LOCK — no scroll, no hover states while loading screen is up ── */
+body.intro-active {
+  overflow: hidden;
+}
+/* Kill pointer events on all page content so nothing shows :hover */
+body.intro-active main,
+body.intro-active nav {
+  pointer-events: none !important;
+}
+
 /* ─── DESIGN TOKENS ─────────────────────────────── */
 :root {
   /* VSK Ultra-Dark Palette */
