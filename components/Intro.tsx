@@ -76,8 +76,19 @@ export function Intro() {
   useEffect(() => {
     if (done) return;
     
-    // Lock page scroll + pointer events while the intro is visible
+    // ── Hard scroll lock ────────────────────────────────────────────────────
+    // Prevent wheel + touch scroll at the event level (works even with Lenis).
+    // pointer-events on underlying page are disabled via body.intro-active CSS.
     document.body.classList.add("intro-active");
+    const noScroll = (e: Event) => e.preventDefault();
+    document.addEventListener("wheel",      noScroll, { passive: false });
+    document.addEventListener("touchmove",  noScroll, { passive: false });
+
+    const cleanup = () => {
+      document.body.classList.remove("intro-active");
+      document.removeEventListener("wheel",     noScroll);
+      document.removeEventListener("touchmove", noScroll);
+    };
 
     let ctx = gsap.context(() => {
       /* ── Morphing text engine ── */
@@ -128,7 +139,7 @@ export function Intro() {
       const tl = gsap.timeline({
         onComplete: () => {
           cancelAnimationFrame(rafId);
-          document.body.classList.remove("intro-active");
+          cleanup();
           try { sessionStorage.setItem("intro-done", "1"); } catch {}
           window.dispatchEvent(new CustomEvent("intro-complete"));
           setDone(true);
@@ -138,7 +149,7 @@ export function Intro() {
       // FAILSAFE: Ensure it unmounts even if GSAP timeline gets stuck
       const failsafeTimer = setTimeout(() => {
         cancelAnimationFrame(rafId);
-        document.body.classList.remove("intro-active");
+        cleanup();
         try { sessionStorage.setItem("intro-done", "1"); } catch {}
         window.dispatchEvent(new CustomEvent("intro-complete"));
         setDone(true);
@@ -193,7 +204,10 @@ export function Intro() {
       };
     });
 
-    return () => ctx.revert(); // proper cleanup for react 18 strict mode
+    return () => {
+      ctx.revert();
+      cleanup(); // safety net for React 18 strict mode double-invoke
+    };
   }, [done]);
 
   if (done) return null;

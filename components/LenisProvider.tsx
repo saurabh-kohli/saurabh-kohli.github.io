@@ -9,15 +9,9 @@ export function LenisProvider() {
     const lenis = initLenis();
     initScrollAnimations();
 
-    // If the intro hasn't been shown yet this session, keep Lenis locked
-    // until it fires "intro-complete" so the page can't be scrolled underneath.
-    const alreadyDone =
-      typeof window !== "undefined" &&
-      sessionStorage.getItem("intro-done") === "1";
-
-    if (!alreadyDone) {
-      lenis.stop();
-    }
+    // Always start Lenis paused — Intro plays on every page load.
+    // It will be unpaused by the "intro-complete" event below.
+    lenis.stop();
 
     // After the intro overlay exits: unlock scroll + recalculate ScrollTrigger positions
     const onIntroComplete = () => {
